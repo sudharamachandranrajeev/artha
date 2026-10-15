@@ -84,7 +84,7 @@ class Rate implements Comparable<Rate> {
   int compareTo(Rate other) => (num * other.den).compareTo(other.num * den);
 
   @override
-  bool operator ==(Object o) => o is Rate && o.num == num && o.den == den;
+  bool operator ==(Object other) => other is Rate && other.num == num && other.den == den;
 
   @override
   int get hashCode => Object.hash(num, den);
