@@ -1,0 +1,8 @@
+"Account Name:","FlexAccount ****12345"
+"Account Balance:","£1,180.50"
+"Available Balance: ","£1,180.50"
+
+"Date","Transaction type","Description","Paid out","Paid in","Balance"
+"05 Oct 2026","Visa purchase","TESCO STORES 3021","£19.50","","£1,180.50"
+"03 Oct 2026","Bank credit","ACME LTD SALARY","","£1,000.00","£1,200.00"
+"01 Oct 2026","Direct debit","OCTOPUS ENERGY","£50.00","","£200.00"
