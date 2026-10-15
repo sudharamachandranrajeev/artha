@@ -13,3 +13,17 @@ server with end-to-end encryption.
 flutter pub get
 flutter run -d linux
 ```
+
+## Test
+
+```sh
+flutter analyze && flutter test
+```
+
+`test/pocketbase_live_test.dart` also runs against a real sync server when one is configured; see
+[server/README.md](server/README.md).
+
+## Sync server
+
+Self-hosted PocketBase with end-to-end encryption: setup, HTTPS, recovery and limits are in
+[server/README.md](server/README.md). For development, run `scripts/run-local-server.sh`.
