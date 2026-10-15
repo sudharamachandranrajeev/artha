@@ -5,6 +5,7 @@
 /// flip liability, equity and income signs for display ("natural" sign).
 library;
 
+import '../../../core/dates.dart';
 import '../../../core/money/money.dart';
 
 enum AccountKind { asset, liability, equity, income, expense }
@@ -129,12 +130,10 @@ class LedgerException implements Exception {
   String toString() => message;
 }
 
-final _isoDate = RegExp(r'^\d{4}-\d{2}-\d{2}$');
-
 /// Enforces the ledger invariants. Throws [LedgerException] on the first
 /// violation; a valid entry can always be posted without unbalancing books.
 void validateEntry(EntryInput e, Map<String, AccountRef> accounts) {
-  if (!_isoDate.hasMatch(e.date) || DateTime.tryParse(e.date) == null) {
+  if (!isValidIsoDate(e.date)) {
     throw LedgerException('Invalid date "${e.date}"');
   }
   if (e.postings.length < 2) {

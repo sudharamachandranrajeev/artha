@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
+import '../../../core/dates.dart';
 import '../../../core/db/database.dart';
 import '../domain/accounting.dart';
 import '../domain/ledger.dart';
@@ -58,13 +59,6 @@ class ImportResult {
   final int merged;
   final int skipped;
 }
-
-String _dayBefore(String iso) {
-  final d = DateTime.parse(iso).subtract(const Duration(days: 1));
-  return d.toIso8601String().substring(0, 10);
-}
-
-int _daysBetween(String a, String b) => DateTime.parse(a).difference(DateTime.parse(b)).inDays.abs();
 
 class ImportService {
   ImportService(this.ledger);
@@ -170,7 +164,7 @@ class ImportService {
       }
       final manual = unlinked
           .where(
-            (e) => !used.contains(e.id) && e.amount == line.amount && _daysBetween(e.date, line.date) <= 4,
+            (e) => !used.contains(e.id) && e.amount == line.amount && daysBetween(e.date, line.date) <= 4,
           )
           .firstOrNull;
       if (manual != null) {
@@ -182,7 +176,7 @@ class ImportService {
       }
       final other = farSide
           .where(
-            (e) => !used.contains(e.id) && e.amount == -line.amount && _daysBetween(e.date, line.date) <= 3,
+            (e) => !used.contains(e.id) && e.amount == -line.amount && daysBetween(e.date, line.date) <= 3,
           )
           .firstOrNull;
       if (other != null) {
@@ -208,7 +202,7 @@ class ImportService {
       if (opening != null && opening != 0) {
         plan
           ..openingBalance = opening
-          ..openingDate = _dayBefore(st.lines.first.date);
+          ..openingDate = addDays(st.lines.first.date, -1);
       }
     }
     return plan;
