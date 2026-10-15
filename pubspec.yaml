@@ -21,6 +21,7 @@ dependencies:
   path: ^1.9.1
   path_provider: ^2.1.6
   pocketbase: ^0.25.2
+  sqlite3: ^3.7.1
   uuid: ^4.6.0
 
 dev_dependencies:
