@@ -53,6 +53,9 @@ const uncategorizedId = 'cat.uncategorized';
 const otherIncomeId = 'cat.other_income';
 const gainsId = 'cat.gains';
 
+/// Currency reports and the dashboard are valued in.
+const basePrefKey = 'base.currency';
+
 /// Ledger operations on the database. All writes go through [Store].
 class Ledger {
   Ledger(this.store);
@@ -275,9 +278,12 @@ class Ledger {
     };
   }
 
-  Future<String> pref(String key, String fallback) async {
+  /// A synced preference, or [fallback] when unset or of another type.
+  Future<T> pref<T>(String key, T fallback) async {
     final row = await (db.select(db.prefs)..where((p) => p.id.equals(key))).getSingleOrNull();
-    return row == null || row.deleted ? fallback : jsonDecode(row.value) as String;
+    if (row == null || row.deleted) return fallback;
+    final v = jsonDecode(row.value);
+    return v is T ? v : fallback;
   }
 
   Future<void> setPref(String key, Object value) => store.save(

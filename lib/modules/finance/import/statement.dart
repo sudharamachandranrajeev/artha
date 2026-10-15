@@ -1,6 +1,8 @@
 /// Common shape every statement parser produces.
 library;
 
+import '../../../core/dates.dart';
+
 class StatementLine {
   StatementLine({
     required this.date,
@@ -85,11 +87,9 @@ const _months = {
 enum DateOrder { ymd, dmy, mdy }
 
 String _iso(int y, int m, int d) {
-  final dt = DateTime.utc(y, m, d);
-  if (dt.year != y || dt.month != m || dt.day != d) {
-    throw const FormatException('no such day');
-  }
-  return '${y.toString().padLeft(4, '0')}-${m.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}';
+  final s = '${y.toString().padLeft(4, '0')}-${m.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}';
+  if (!isValidIsoDate(s)) throw const FormatException('no such day');
+  return s;
 }
 
 int _year(String y) {
