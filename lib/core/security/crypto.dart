@@ -100,6 +100,24 @@ class VaultCrypto {
     return jsonDecode(utf8.decode(gzip.decode(clear)));
   }
 
+  /// A 32-byte key for [info] from [secret] (HKDF-SHA256, optional [salt]).
+  static Future<SecretKey> deriveKey(List<int> secret, String info, {List<int> salt = const []}) =>
+      _hkdf.deriveKey(secretKey: SecretKey(secret), nonce: salt, info: utf8.encode(info));
+
+  /// Encrypts a small JSON value under [key], bound to [aad]; [openJson]
+  /// reverses it and throws [CryptoException] with [error] on any tampering.
+  static Future<String> sealJson(Object json, SecretKey key, String aad) =>
+      _encrypt(utf8.encode(jsonEncode(json)), key, utf8.encode(aad));
+
+  static Future<Object?> openJson(String sealed, SecretKey key, String aad, String error) async {
+    final clear = await _decrypt(sealed, key, utf8.encode(aad), error);
+    try {
+      return jsonDecode(utf8.decode(clear));
+    } on FormatException {
+      throw CryptoException(error);
+    }
+  }
+
   static Future<String> _encrypt(List<int> clear, SecretKey key, List<int> aad) async {
     final box = await _aead.encrypt(clear, secretKey: key, aad: aad);
     return base64.encode(box.concatenation());
