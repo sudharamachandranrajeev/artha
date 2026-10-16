@@ -241,7 +241,11 @@ jobs:
     name: Linux app starts on ${{ matrix.image }}
     needs: linux
     runs-on: ubuntu-latest
-    container: ${{ matrix.image }}
+    container:
+      image: ${{ matrix.image }}
+      # Fedora's and Arch's gnome-keyring-daemon claims CAP_IPC_LOCK (to keep
+      # secrets out of swap) and aborts without it; Docker leaves it out.
+      options: --cap-add=IPC_LOCK
     strategy:
       fail-fast: false
       matrix:
@@ -259,14 +263,10 @@ jobs:
               libgl1-mesa-dri libegl1 libgles2 xvfb xauth >/dev/null
           elif command -v dnf >/dev/null; then
             dnf install -y -q gtk3 libsecret gnome-keyring dbus-daemon dbus-tools mesa-dri-drivers mesa-libEGL libglvnd-gles \
-              xorg-x11-server-Xvfb xorg-x11-xauth util-linux libcap
+              xorg-x11-server-Xvfb xorg-x11-xauth util-linux
           else
             pacman -Syu --noconfirm --needed gtk3 libsecret gnome-keyring dbus mesa xorg-server-xvfb xorg-xauth >/dev/null
           fi
-          # Fedora and Arch ship the keyring daemon with file capabilities
-          # (cap_ipc_lock), which it cannot drop inside a container, so it
-          # aborts at start. Desktops are not affected.
-          setcap -r "$(command -v gnome-keyring-daemon)" 2>/dev/null || true
       - name: Smoke test
         shell: bash
         run: |
