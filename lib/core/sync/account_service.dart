@@ -26,6 +26,9 @@ class AccountService {
 
   final KeyVault vault;
   final String deviceId;
+
+  /// Shown to the other device when pairing, inside the sealed request
+  /// only: the server's device list stays nameless.
   final String deviceName;
   final String platform;
 
@@ -226,7 +229,7 @@ class AccountService {
   /// Withdraws [link]; a device waiting on it is told it was declined.
   Future<void> cancelPairing(PairingLink link) async {
     try {
-      await (await _signedIn()).collection('pairings').delete(link.id);
+      await _pairings(await _signedIn()).delete(link.id);
     } on ClientException catch (e) {
       if (e.statusCode != 404) await pbCall(() => Future<void>.error(e));
     }
@@ -332,7 +335,7 @@ class AccountService {
     try {
       await pb
           .collection('devices')
-          .create(body: {'owner': ownerId, 'device': deviceId, 'name': deviceName, 'platform': platform});
+          .create(body: {'owner': ownerId, 'device': deviceId, 'platform': platform});
     } on ClientException catch (e) {
       if (!isNotUnique(e)) await pbCall(() => Future<void>.error(e));
     }

@@ -84,7 +84,7 @@ void main() {
       final devices = await server.admin
           .collection('devices')
           .getFullList(filter: 'device = "${b.store.deviceId}"');
-      expect(devices.single.getStringValue('name'), 'Pixel 8');
+      expect(devices.single.getStringValue('name'), isEmpty, reason: 'the name travels sealed only');
 
       await (await b.engine()).run();
       final row = await (b.db.select(b.db.accounts)..where((x) => x.id.equals(bank))).getSingle();
