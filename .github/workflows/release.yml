@@ -149,10 +149,11 @@ jobs:
           $db = Get-ChildItem $env:APPDATA -Recurse -Filter artha.sqlite -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $db) { throw "Artha started but created no database" }
           Write-Host "Database: $($db.FullName) ($($db.Length) bytes)"
-          $head = [System.Text.Encoding]::ASCII.GetString([System.IO.File]::ReadAllBytes($db.FullName)[0..15])
-          if ($head -like 'SQLite format 3*') { throw "The database is not encrypted" }
           Stop-Process -Id $app.Id -Force
           Start-Sleep -Seconds 2
+          # Read after stopping: the running app keeps the file open.
+          $head = [System.Text.Encoding]::ASCII.GetString([System.IO.File]::ReadAllBytes($db.FullName)[0..15])
+          if ($head -like 'SQLite format 3*') { throw "The database is not encrypted" }
           $uninstaller = Join-Path $dir 'unins000.exe'
           $u = Start-Process $uninstaller -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
           if ($u.ExitCode -ne 0) { throw "uninstall exited with $($u.ExitCode)" }
@@ -258,10 +259,14 @@ jobs:
               libgl1-mesa-dri libegl1 libgles2 xvfb xauth >/dev/null
           elif command -v dnf >/dev/null; then
             dnf install -y -q gtk3 libsecret gnome-keyring dbus-daemon dbus-tools mesa-dri-drivers mesa-libEGL libglvnd-gles \
-              xorg-x11-server-Xvfb xorg-x11-xauth util-linux
+              xorg-x11-server-Xvfb xorg-x11-xauth util-linux libcap
           else
             pacman -Syu --noconfirm --needed gtk3 libsecret gnome-keyring dbus mesa xorg-server-xvfb xorg-xauth >/dev/null
           fi
+          # Fedora and Arch ship the keyring daemon with file capabilities
+          # (cap_ipc_lock), which it cannot drop inside a container, so it
+          # aborts at start. Desktops are not affected.
+          setcap -r "$(command -v gnome-keyring-daemon)" 2>/dev/null || true
       - name: Smoke test
         shell: bash
         run: |
