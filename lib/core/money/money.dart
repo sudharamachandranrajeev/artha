@@ -166,15 +166,16 @@ String formatCompact(int minor, int scale, {String symbol = ''}) {
   final v = minor / pow10(scale).toDouble();
   final a = v.abs();
   final sign = v < 0 ? '-' : '';
-  String body;
-  if (a >= 1e9) {
-    body = '${(a / 1e9).toStringAsFixed(1)}B';
-  } else if (a >= 1e6) {
-    body = '${(a / 1e6).toStringAsFixed(1)}M';
-  } else if (a >= 1e4) {
-    body = '${(a / 1e3).toStringAsFixed(1)}k';
-  } else {
-    body = a.toStringAsFixed(a >= 100 ? 0 : 2);
-  }
+  // One decimal at most, dropped when it is zero: 8000 -> 8k, 1500 -> 1.5k.
+  String short(double x) => x.toStringAsFixed(1).replaceFirst(RegExp(r'\.0$'), '');
+  final body = a >= 1e9
+      ? '${short(a / 1e9)}B'
+      : a >= 1e6
+      ? '${short(a / 1e6)}M'
+      : a >= 1e3
+      ? '${short(a / 1e3)}k'
+      : a == a.roundToDouble()
+      ? a.toStringAsFixed(0)
+      : a.toStringAsFixed(2);
   return '$sign$symbol$body';
 }

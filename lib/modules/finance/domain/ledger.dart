@@ -2,9 +2,11 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
+import '../../../core/dates.dart';
 import '../../../core/db/database.dart';
 import '../../../core/db/store.dart';
 import '../../../core/money/currencies.dart';
+import '../../../core/money/money.dart';
 import '../../../core/sync/hlc.dart';
 import 'accounting.dart';
 
@@ -56,6 +58,11 @@ const gainsId = 'cat.gains';
 /// Currency reports and the dashboard are valued in.
 const basePrefKey = 'base.currency';
 
+/// Currency the default categories are created in. Set once at first run and
+/// never changed, so every device seeds identical rows even after the base
+/// currency changes.
+const seedCurrencyKey = 'seed.currency';
+
 /// Ledger operations on the database. All writes go through [Store].
 class Ledger {
   Ledger(this.store);
@@ -63,7 +70,18 @@ class Ledger {
   final Store store;
   AppDatabase get db => store.db;
 
-  /// Creates default categories (in [currency]) once; never overwrites rows.
+  /// First run: sets the base currency and, unless another device already
+  /// did, the seed currency, then creates the default categories.
+  Future<void> setUp(String base) async {
+    await setPref(basePrefKey, base);
+    if (await pref<String?>(seedCurrencyKey, null) == null) await setPref(seedCurrencyKey, base);
+    await seedDefaults(await pref<String?>(seedCurrencyKey, null) ?? base);
+  }
+
+  /// Creates default categories (in [currency]) once; never overwrites rows
+  /// the user has edited. Seed rows that are untouched and unused but in
+  /// another currency (seeded before this device learnt the synced seed
+  /// currency) switch to [currency], so all devices agree.
   Future<void> seedDefaults(String currency) => db.transaction(() async {
     await ensureCurrency(currency);
     final rows = [
@@ -88,6 +106,19 @@ class Ledger {
       ),
     ];
     await db.batch((b) => b.insertAll(db.accounts, rows, mode: InsertMode.insertOrIgnore));
+    final ids = [for (final r in rows) r.id.value];
+    await db.customUpdate(
+      'UPDATE accounts SET commodity_id = ? WHERE hlc = ? AND commodity_id <> ? '
+      'AND id IN (${List.filled(ids.length, '?').join(', ')}) '
+      'AND NOT EXISTS (SELECT 1 FROM postings p WHERE p.account_id = accounts.id)',
+      variables: [
+        Variable(currency),
+        const Variable(HlcClock.seed),
+        Variable(currency),
+        for (final id in ids) Variable(id),
+      ],
+      updates: {db.accounts},
+    );
   });
 
   /// Currency commodities use the ISO code as id, identical on every device.
@@ -278,6 +309,50 @@ class Ledger {
     };
   }
 
+  /// Records a statement balance (one per account and day) to tally against.
+  Future<void> saveBalanceCheck(String accountId, String date, int amount, {String note = ''}) {
+    if (!isValidIsoDate(date)) throw LedgerException('Invalid date "$date"');
+    final id = '$accountId@$date';
+    return store.save(
+      db.balanceChecks,
+      BalanceChecksCompanion.insert(
+        id: id,
+        accountId: accountId,
+        date: date,
+        amount: amount,
+        note: Value(note),
+        deleted: const Value(false),
+      ),
+      id,
+    );
+  }
+
+  /// Records the price of one unit of [commodityId] in [quote] on [date].
+  Future<void> savePrice(
+    String commodityId,
+    String quote,
+    String date,
+    Rate rate, {
+    String source = 'manual',
+  }) {
+    if (!isValidIsoDate(date)) throw LedgerException('Invalid date "$date"');
+    if (rate.num <= BigInt.zero) throw LedgerException('A price must be above zero');
+    final id = '$source/$commodityId/$quote/$date';
+    return store.save(
+      db.prices,
+      PricesCompanion.insert(
+        id: id,
+        commodityId: commodityId,
+        quote: quote,
+        date: date,
+        rate: rate.toDecimalString(10),
+        source: source,
+        deleted: const Value(false),
+      ),
+      id,
+    );
+  }
+
   /// A synced preference, or [fallback] when unset or of another type.
   Future<T> pref<T>(String key, T fallback) async {
     final row = await (db.select(db.prefs)..where((p) => p.id.equals(key))).getSingleOrNull();
@@ -291,4 +366,32 @@ class Ledger {
     PrefsCompanion.insert(id: key, value: jsonEncode(value), deleted: const Value(false)),
     key,
   );
+
+  /// Target allocation in basis points per asset class (empty when unset).
+  Future<Map<String, int>> targets() async {
+    final rows = await (db.select(db.targets)..where((t) => t.deleted.not())).get();
+    return {
+      for (final t in rows)
+        if (t.weightBp > 0) t.assetClass: t.weightBp,
+    };
+  }
+
+  /// Replaces the target allocation. Weights are basis points summing to 10000.
+  Future<void> saveTargets(Map<String, int> bp) => db.transaction(() async {
+    if (bp.values.any((w) => w < 0) || bp.values.fold(0, (a, b) => a + b) != 10000) {
+      throw LedgerException('Targets must add up to 100%');
+    }
+    final existing = {for (final t in await db.select(db.targets).get()) t.assetClass: t};
+    for (final cls in {...existing.keys, ...bp.keys}) {
+      final w = bp[cls] ?? 0;
+      final old = existing[cls];
+      if (old != null && old.weightBp == w && !old.deleted) continue;
+      final id = 'target.$cls';
+      await store.save(
+        db.targets,
+        TargetsCompanion.insert(id: id, assetClass: cls, weightBp: w, deleted: const Value(false)),
+        id,
+      );
+    }
+  });
 }

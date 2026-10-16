@@ -44,10 +44,19 @@ class KeyVault {
   static const _dataKey = 'artha.sync.dek';
   static const _session = 'artha.sync.session';
 
-  /// The SQLCipher key for this device, created on first use.
-  Future<String> databaseKey() async {
+  /// The database encryption key for this device, created on first use. With
+  /// [create] false (a database already exists) a missing key is an error:
+  /// a fresh key could never open the old file, and storing one would stop
+  /// the old key working if the keychain comes back.
+  Future<String> databaseKey({bool create = true}) async {
     final existing = await store.read(_dbKey);
     if (existing != null) return existing;
+    if (!create) {
+      throw CryptoException(
+        'The database key is missing from the system keychain. Unlock or restore the keychain, '
+        'then start Artha again.',
+      );
+    }
     final key = VaultCrypto.randomBytes(32).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
     await store.write(_dbKey, key);
     if (await store.read(_dbKey) != key) {

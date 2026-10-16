@@ -27,6 +27,10 @@ class PasswordKeys {
 ///                                    \--> KEK, which wraps a random data key
 /// The data key (DEK) encrypts every change with XChaCha20-Poly1305. A
 /// recovery key wraps the same DEK so a forgotten password loses nothing.
+/// Shortest password accepted for a sync account. The password derives the
+/// key that wraps the data key, so it is the main defence if the server leaks.
+const minPasswordLength = 12;
+
 class VaultCrypto {
   static const version = 'artha/v1';
   static final _aead = Xchacha20.poly1305Aead();
@@ -36,7 +40,9 @@ class VaultCrypto {
   /// OWASP's minimum Argon2id profile (19 MiB, 2 passes), run off the UI
   /// isolate. The salt is per account, derived from the e-mail address.
   static Future<PasswordKeys> fromPassword(String email, String password) async {
-    if (password.length < 10) throw CryptoException('Use a password of at least 10 characters');
+    if (password.length < minPasswordLength) {
+      throw CryptoException('Use a password of at least $minPasswordLength characters');
+    }
     final salt = (await Sha256().hash(utf8.encode('$version/${email.trim().toLowerCase()}'))).bytes;
     final secret = utf8.encode(password);
     final master = await Isolate.run(() async {

@@ -28,6 +28,32 @@ void main() {
     expect(await db.select(db.outbox).get(), isEmpty);
   });
 
+  test('seeds follow the synced seed currency, never the base currency', () async {
+    final bank = await ledger.saveAccount(name: 'Monzo', subtype: 'current', commodityId: 'GBP');
+    await ledger.saveEntry(
+      simpleEntry(
+        date: '2026-10-01',
+        currency: 'GBP',
+        accountId: bank,
+        categoryId: 'cat.groceries',
+        amount: 500,
+      ),
+    );
+    await ledger.setUp('GBP');
+    await ledger.setPref(basePrefKey, 'EUR');
+    await ledger.setUp('EUR');
+    Future<String> currencyOf(String id) async =>
+        (await (db.select(db.accounts)..where((a) => a.id.equals(id))).getSingle()).commodityId;
+    expect(await ledger.pref<String?>(seedCurrencyKey, null), 'GBP');
+    expect(await currencyOf('cat.salary'), 'GBP');
+
+    // A device that seeded in another currency before sync told it otherwise:
+    // unused seeds switch, used ones keep their currency.
+    await ledger.seedDefaults('USD');
+    expect(await currencyOf('cat.salary'), 'USD');
+    expect(await currencyOf('cat.groceries'), 'GBP');
+  });
+
   test('balanced entries post, unbalanced ones are refused', () async {
     final bank = await ledger.saveAccount(name: 'Monzo', subtype: 'current', commodityId: 'GBP');
     await ledger.saveEntry(

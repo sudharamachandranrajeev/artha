@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/common.dart';
 
@@ -79,6 +82,10 @@ class AppDatabase extends _$AppDatabase {
   }
 }
 
+/// Where the on-device database lives.
+Future<File> appDatabaseFile([String name = 'artha']) async =>
+    File(p.join((await getApplicationSupportDirectory()).path, '$name.sqlite'));
+
 /// Opens the on-device database, encrypted with SQLite3MultipleCiphers.
 ///
 /// [key] is a random hex secret kept in the platform keystore (KeyVault).
@@ -92,7 +99,7 @@ AppDatabase openAppDatabase(String key, {String name = 'artha'}) {
     driftDatabase(
       name: name,
       native: DriftNativeOptions(
-        databaseDirectory: getApplicationSupportDirectory,
+        databasePath: () async => (await appDatabaseFile(name)).path,
         setup: (db) => applyEncryptionKey(db, key),
       ),
     ),
