@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:artha/core/db/database.dart';
 import 'package:artha/core/db/store.dart';
 import 'package:artha/core/security/crypto.dart';
@@ -68,15 +66,10 @@ void main() {
     }
   });
 
-  final env = Platform.environment;
-  final url = env['ARTHA_PB_URL'], invite = env['ARTHA_SIGNUP_CODE'];
-  final adminEmail = env['ARTHA_PB_ADMIN'], adminPassword = env['ARTHA_PB_ADMIN_PASSWORD'];
-  final skip = [url, invite, adminEmail, adminPassword].contains(null)
-      ? 'Live server test: set ARTHA_PB_URL, ARTHA_SIGNUP_CODE, ARTHA_PB_ADMIN, ARTHA_PB_ADMIN_PASSWORD '
-            '(scripts/run-local-server.sh writes them to server/.env)'
-      : null;
+  final server = LiveServer.fromEnvironment();
+  final url = server?.url, invite = server?.invite;
 
-  group('live PocketBase', skip: skip, () {
+  group('live PocketBase', skip: server == null ? LiveServer.skipReason : null, () {
     final run = DateTime.now().microsecondsSinceEpoch;
     final email = 'a$run@artha.test';
     const password = 'correct horse battery';
@@ -86,29 +79,15 @@ void main() {
     late String recovery;
 
     setUpAll(() async {
-      admin = PocketBase(url!);
-      await admin.collection('_superusers').authWithPassword(adminEmail!, adminPassword!);
-      limits = Map<String, dynamic>.from((await admin.settings.getAll())['rateLimits'] as Map);
-      // The real limits would stop this test half way; they are checked below.
-      await admin.settings.update(
-        body: {
-          'rateLimits': {
-            ...limits,
-            'rules': [
-              for (final r in limits['rules'] as List) {...r as Map, 'maxRequests': 10000},
-            ],
-          },
-        },
-      );
+      await server!.relax();
+      admin = server.admin;
+      limits = server.limits;
       a = await Phone.open();
       b = await Phone.open();
     });
 
     tearDownAll(() async {
-      await admin.settings.update(body: {'rateLimits': limits});
-      for (final u in await admin.collection('users').getFullList(filter: 'email ~ "$run@artha.test"')) {
-        await admin.collection('users').delete(u.id);
-      }
+      await server!.restore('$run@artha.test');
       await a.db.close();
       await b.db.close();
     });
