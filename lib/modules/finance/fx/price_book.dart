@@ -32,7 +32,10 @@ class PriceBook {
         .customSelect(
           'SELECT a.commodity_id AS c, e.currency AS q, e.date AS d, p.amount, p.value '
           'FROM postings p JOIN entries e ON e.id = p.entry_id JOIN accounts a ON a.id = p.account_id '
-          'WHERE e.deleted = 0 AND a.commodity_id <> e.currency AND p.amount <> 0 AND p.value <> 0 '
+          // Only real conversions: category and equity lines are in the entry
+          // currency whatever their account's commodity (see isNominal).
+          "WHERE e.deleted = 0 AND a.kind IN ('asset', 'liability') AND a.commodity_id <> e.currency "
+          'AND p.amount <> 0 AND p.value <> 0 '
           'ORDER BY e.date',
           readsFrom: {db.postings, db.entries, db.accounts},
         )

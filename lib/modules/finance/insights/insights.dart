@@ -177,7 +177,7 @@ class InsightEngine {
           'SELECT e.date, e.payee, e.memo, p.account_id, p.amount FROM entries e '
           'JOIN postings p ON p.entry_id = e.id JOIN accounts a ON a.id = p.account_id '
           "WHERE e.deleted = 0 AND e.date BETWEEN ? AND ? AND a.kind IN ('income', 'expense') "
-          'AND a.commodity_id = ? AND (SELECT COUNT(*) FROM postings q WHERE q.entry_id = e.id) = 2',
+          'AND e.currency = ? AND (SELECT COUNT(*) FROM postings q WHERE q.entry_id = e.id) = 2',
           variables: [Variable(addMonths(today, -13)), Variable(today), Variable(base)],
           readsFrom: {db.entries, db.postings, db.accounts},
         )
