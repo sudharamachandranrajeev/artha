@@ -3,6 +3,11 @@
 #
 #   scripts/run-local-server.sh            # serve on 127.0.0.1:8090
 #   ARTHA_PB_PORT=8099 scripts/run-local-server.sh
+#   ARTHA_PB_HOST=0.0.0.0 scripts/run-local-server.sh   # let phones on this network sync
+#
+# Only open it to your own network (home Wi-Fi, Tailscale): it serves plain
+# http. Data is end-to-end encrypted and sign-up needs the invite code, but
+# a public server belongs behind https (see server/README.md).
 #
 # First run downloads the pinned PocketBase release (checksum-verified) and
 # writes server/.env (mode 600, git-ignored) with a random invite code and
@@ -21,6 +26,7 @@ declare -A PB_SHA256=(
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 server="$root/server"
 port="${ARTHA_PB_PORT:-8090}"
+host="${ARTHA_PB_HOST:-127.0.0.1}"
 
 case "$(uname -m)" in
   x86_64) arch=amd64 ;;
@@ -61,4 +67,9 @@ set +a
 args=(--dir="$server/pb_data" --migrationsDir="$server/pb_migrations" --hooksDir="$server/pb_hooks")
 "$pb" superuser upsert "$ARTHA_PB_ADMIN" "$ARTHA_PB_ADMIN_PASSWORD" "${args[@]}" >/dev/null
 echo "Admin UI: http://127.0.0.1:$port/_/  (login from server/.env)"
-exec "$pb" serve --http="127.0.0.1:$port" --dev=false "${args[@]}"
+if [[ $host != 127.0.0.1 ]]; then
+  lan="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}')"
+  echo "Listening on $host:$port. Other devices use: http://${lan:-THIS-MACHINE-IP}:$port"
+  echo "Invite code for sign-up: ARTHA_SIGNUP_CODE in server/.env"
+fi
+exec "$pb" serve --http="$host:$port" --dev=false "${args[@]}"

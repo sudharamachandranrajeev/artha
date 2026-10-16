@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -15,11 +17,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "dev.artha.artha"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // 24: Android 7, the oldest the keystore-backed secure storage supports well.
+        minSdk = maxOf(flutter.minSdkVersion, 24)
         targetSdk = flutter.targetSdkVersion
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
         // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
@@ -29,11 +29,29 @@ android {
         versionName = flutter.versionName
     }
 
+    // Release signing: android/key.properties (storeFile, storePassword,
+    // keyAlias, keyPassword) or the ARTHA_KEYSTORE* environment variables
+    // (CI). Without either, release builds use the debug key.
+    val keyProps = Properties().apply {
+        val file = rootProject.file("key.properties")
+        if (file.exists()) file.inputStream().use { load(it) }
+    }
+    fun signing(prop: String, env: String): String? = keyProps.getProperty(prop) ?: System.getenv(env)
+    val storePath = signing("storeFile", "ARTHA_KEYSTORE")
+    signingConfigs {
+        if (storePath != null) {
+            create("release") {
+                storeFile = file(storePath)
+                storePassword = signing("storePassword", "ARTHA_KEYSTORE_PASSWORD")
+                keyAlias = signing("keyAlias", "ARTHA_KEY_ALIAS")
+                keyPassword = signing("keyPassword", "ARTHA_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 }

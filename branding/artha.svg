@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Artha: an emerald disc, a white A and a gold crossbar (the balance). -->
+  <circle cx="512" cy="512" r="496" fill="#047857"/>
+  <path d="M300 780 L512 236 L724 780" fill="none" stroke="#ffffff" stroke-width="112"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M372 604 H652" fill="none" stroke="#C9A227" stroke-width="88" stroke-linecap="round"/>
+</svg>
