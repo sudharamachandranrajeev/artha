@@ -4,20 +4,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/security/crypto.dart' show minPasswordLength;
 import '../core/sync/account_service.dart';
+import '../core/sync/pairing.dart';
 import '../ui/widgets.dart';
 import 'providers.dart';
 
 enum SyncMode { signUp, signIn, reset }
 
 /// Sign up, sign in or reset a forgotten password. Returns true when the
-/// device ends up signed in.
-Future<bool> showSyncDialog(BuildContext context, {SyncMode mode = SyncMode.signIn}) async =>
-    await showDialog<bool>(context: context, barrierDismissible: false, builder: (_) => _SyncDialog(mode)) ??
+/// device ends up signed in. A [setup] link from the server fills in its
+/// address and invite code.
+Future<bool> showSyncDialog(
+  BuildContext context, {
+  SyncMode mode = SyncMode.signIn,
+  SetupLink? setup,
+}) async =>
+    await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _SyncDialog(mode, setup),
+    ) ??
     false;
 
 class _SyncDialog extends ConsumerStatefulWidget {
-  const _SyncDialog(this.mode);
+  const _SyncDialog(this.mode, this.setup);
   final SyncMode mode;
+  final SetupLink? setup;
 
   @override
   ConsumerState<_SyncDialog> createState() => _SyncDialogState();
@@ -35,6 +46,37 @@ class _SyncDialogState extends ConsumerState<_SyncDialog> {
   late SyncMode _mode = widget.mode;
   bool _busy = false, _resetSent = false, _show = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.setup != null) _useSetup(widget.setup!);
+  }
+
+  void _useSetup(SetupLink link) {
+    _server.text = '${link.server}';
+    _invite.text = link.invite;
+  }
+
+  /// The server address field also takes a pasted `artha://` link.
+  void _serverChanged(String text) {
+    if (!text.trim().startsWith('artha://')) return;
+    setState(() {
+      try {
+        switch (ArthaLink.parse(text)) {
+          case SetupLink() && final link:
+            _useSetup(link);
+            _mode = SyncMode.signUp;
+            _error = null;
+          case PairingLink():
+            _server.clear();
+            _error = 'That is a link to join another device. Close this and choose Join from another device.';
+        }
+      } catch (e) {
+        _error = describeError(e);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -78,9 +120,10 @@ class _SyncDialogState extends ConsumerState<_SyncDialog> {
                   controller: _server,
                   enabled: !_resetSent,
                   keyboardType: TextInputType.url,
+                  onChanged: _serverChanged,
                   decoration: const InputDecoration(
                     labelText: 'Server address',
-                    helperText: 'https:// is required unless the server is on your own network.',
+                    helperText: 'Or paste the setup link the server printed.',
                   ),
                   validator: (v) => (v ?? '').trim().length < 10 ? 'Enter the server address' : null,
                 ),
@@ -144,7 +187,7 @@ class _SyncDialogState extends ConsumerState<_SyncDialog> {
                     obscureText: true,
                     decoration: const InputDecoration(
                       labelText: 'Invite code',
-                      helperText: 'Set as ARTHA_SIGNUP_CODE on the server.',
+                      helperText: 'Part of the setup link; also ARTHA_SIGNUP_CODE on the server.',
                     ),
                     validator: (v) => (v ?? '').trim().isEmpty ? 'Enter the invite code' : null,
                   ),

@@ -8,6 +8,7 @@ import '../ui/format.dart';
 import '../ui/hints.dart';
 import '../ui/widgets.dart';
 import 'providers.dart';
+import 'pairing_dialogs.dart';
 import 'sync_dialogs.dart';
 
 final _fxProvider = FutureProvider<({bool auto, String? last})>((ref) async {
@@ -234,7 +235,7 @@ class _SyncCard extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text(
-                    'Keep Artha in step across your devices through your own PocketBase server. '
+                    'Keep Artha in step across your devices through your own sync server. '
                     'Everything is encrypted on the device first.',
                   ),
                   const SizedBox(height: 12),
@@ -242,11 +243,16 @@ class _SyncCard extends ConsumerWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      FilledButton(
-                        onPressed: () => showSyncDialog(context, mode: SyncMode.signIn),
-                        child: const Text('Sign in'),
+                      FilledButton.icon(
+                        onPressed: () => showJoinDialog(context),
+                        icon: const Icon(Icons.devices_outlined),
+                        label: const Text('Join from another device'),
                       ),
                       OutlinedButton(
+                        onPressed: () => showSyncDialog(context, mode: SyncMode.signIn),
+                        child: const Text('Sign in with e-mail'),
+                      ),
+                      TextButton(
                         onPressed: () => showSyncDialog(context, mode: SyncMode.signUp),
                         child: const Text('Create account'),
                       ),
@@ -262,6 +268,13 @@ class _SyncCard extends ConsumerWidget {
                   leading: const Icon(Icons.account_circle_outlined),
                   title: Text(sync.email ?? 'Signed in'),
                   subtitle: Text(sync.server ?? ''),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.qr_code_2),
+                  title: const Text('Add a device'),
+                  subtitle: const Text('Show a code your phone or another computer can join with'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => showAddDevice(context),
                 ),
                 ListTile(
                   leading: Icon(switch (sync.phase) {

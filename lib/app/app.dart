@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../ui/shell.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
+import 'links.dart';
 import 'onboarding_page.dart';
+import 'pairing_dialogs.dart';
 import 'providers.dart';
 
 class ArthaApp extends StatelessWidget {
@@ -21,12 +23,40 @@ class ArthaApp extends StatelessWidget {
   );
 }
 
-/// Onboarding until a base currency exists, then the app.
-class _Root extends ConsumerWidget {
+/// Onboarding until a base currency exists, then the app. Also opens
+/// `artha://` links the platform hands over (a scanned pairing code).
+class _Root extends ConsumerStatefulWidget {
   const _Root();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_Root> createState() => _RootState();
+}
+
+class _RootState extends ConsumerState<_Root> {
+  bool _opening = false;
+
+  @override
+  void initState() {
+    super.initState();
+    PlatformLinks.listen(_open);
+    PlatformLinks.initial().then((link) {
+      if (link != null) _open(link);
+    });
+  }
+
+  Future<void> _open(String link) async {
+    // One at a time: a second scan while a dialog is up is ignored.
+    if (_opening || !mounted) return;
+    _opening = true;
+    try {
+      await openArthaLink(context, ref, link);
+    } finally {
+      _opening = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final setup = ref.watch(setupProvider);
     // Keep the current screen while the provider reloads after each write.
     if (setup.hasValue) return setup.value == null ? const OnboardingPage() : const AppShell();

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleListener;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/dates.dart';
@@ -300,10 +301,26 @@ class SyncState {
 class SyncController extends Notifier<SyncState> {
   Timer? _debounce, _periodic;
   bool _again = false;
+  DateTime _lastRun = DateTime.now();
 
   @override
   SyncState build() {
+    // Back in the app: fetch what other devices did, at most once a minute
+    // (desktops resume on every focus). Leaving it: send what is queued now,
+    // since a phone may not run again for hours.
+    final lifecycle = AppLifecycleListener(
+      onResume: () {
+        if (DateTime.now().difference(_lastRun) > const Duration(minutes: 1)) run();
+      },
+      onHide: () {
+        if (_debounce?.isActive ?? false) {
+          _debounce!.cancel();
+          run();
+        }
+      },
+    );
     ref.onDispose(() {
+      lifecycle.dispose();
       _debounce?.cancel();
       _periodic?.cancel();
     });
@@ -322,6 +339,7 @@ class SyncController extends Notifier<SyncState> {
       _again = true;
       return;
     }
+    _lastRun = DateTime.now();
     final s = ref.read(sessionProvider);
     final session = await s.keys.session();
     if (session == null) {

@@ -8,6 +8,7 @@ import '../core/money/currencies.dart';
 import '../modules/finance/ui/common.dart';
 import '../ui/widgets.dart';
 import 'providers.dart';
+import 'pairing_dialogs.dart';
 import 'sync_dialogs.dart';
 
 /// The currency of the device's region, if Artha knows it.
@@ -110,12 +111,23 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                       Status.info,
                       'Signed in as ${sync.email}. The account has no data yet, so choose a base currency.',
                     )
-                  else
-                    TextButton.icon(
-                      onPressed: _busy ? null : () => showSyncDialog(context),
-                      icon: const Icon(Icons.sync),
-                      label: const Text('Already use Artha? Sign in to sync'),
+                  else ...[
+                    Text(
+                      'Already use Artha on another device?',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.titleSmall,
                     ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _busy ? null : () => showJoinDialog(context),
+                      icon: const Icon(Icons.devices_outlined),
+                      label: const Text('Join from another device'),
+                    ),
+                    TextButton(
+                      onPressed: _busy ? null : () => showSyncDialog(context),
+                      child: const Text('Sign in with e-mail instead'),
+                    ),
+                  ],
                 ],
               ),
             ),
