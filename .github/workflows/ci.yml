@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Analyze and test (with a live sync server)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev >/dev/null
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.7
+          cache: true
+      - run: flutter pub get
+      - name: Formatting
+        run: dart format -l 110 --output=none --set-exit-if-changed lib test
+      - run: flutter analyze
+      - name: Sync server
+        run: |
+          scripts/run-local-server.sh > "$RUNNER_TEMP/server.log" 2>&1 &
+          for _ in $(seq 60); do
+            curl -sf http://127.0.0.1:8090/api/health >/dev/null && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:8090/api/health || { cat "$RUNNER_TEMP/server.log"; exit 1; }
+      - name: Tests
+        run: |
+          set -a; . server/.env; set +a
+          flutter test
+      - name: Server log
+        if: failure()
+        run: cat "$RUNNER_TEMP/server.log"

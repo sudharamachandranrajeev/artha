@@ -1,8 +1,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Sync with the user's own server and daily exchange rates. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- usesCleartextTraffic: plain http is allowed only so a sync server on
+         the user's own network (192.168.x, Tailscale, .local) can be reached.
+         The app refuses http to any public host (validateServerUrl), and
+         synced data is end-to-end encrypted either way.
+         allowBackup: the database key lives in the Android keystore, which is
+         not backed up, so a restored copy could never be opened. Sync is the
+         backup. -->
     <application
-        android:label="artha"
+        android:label="Artha"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true"
+        android:allowBackup="false"
+        android:fullBackupContent="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"

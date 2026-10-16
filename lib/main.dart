@@ -23,6 +23,8 @@ Future<void> _start() async {
       ),
     );
   } catch (e) {
+    // Also in release builds' logs, where smoke tests look for it.
+    debugPrint('Artha startup failed: $e');
     runApp(StartupFailure(e, onRetry: _start));
   }
 }

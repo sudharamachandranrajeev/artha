@@ -38,9 +38,17 @@ class LiveServer {
     return LiveServer._(url, invite, email, password);
   }
 
+  RandomAccessFile? _turn;
+
   /// Signs in as admin and lifts the rate limits, which would stop a test
   /// half way. [restore] puts them back.
+  ///
+  /// Test files run in parallel, so this first waits until no other live
+  /// file holds the server. Otherwise it would save that file's lifted
+  /// limits as the ones to put back. The OS drops the lock if a run dies.
   Future<void> relax() async {
+    _turn = await File('${Directory.systemTemp.path}/artha-live-server.lock').open(mode: FileMode.write);
+    await _turn!.lock(FileLock.blockingExclusive);
     await admin.collection('_superusers').authWithPassword(_adminEmail, _adminPassword);
     limits = Map<String, dynamic>.from((await admin.settings.getAll())['rateLimits'] as Map);
     await admin.settings.update(
@@ -57,9 +65,14 @@ class LiveServer {
 
   /// Restores the rate limits and deletes users whose e-mail contains [tag].
   Future<void> restore(String tag) async {
-    await admin.settings.update(body: {'rateLimits': limits});
-    for (final u in await admin.collection('users').getFullList(filter: 'email ~ "$tag"')) {
-      await admin.collection('users').delete(u.id);
+    try {
+      await admin.settings.update(body: {'rateLimits': limits});
+      for (final u in await admin.collection('users').getFullList(filter: 'email ~ "$tag"')) {
+        await admin.collection('users').delete(u.id);
+      }
+    } finally {
+      await _turn?.close();
+      _turn = null;
     }
   }
 }
