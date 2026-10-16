@@ -263,19 +263,7 @@ class ImportService {
       final closing = plan.statement.closingBalance;
       final closingDate = plan.statement.closingDate;
       if (closing != null && closingDate != null) {
-        final id = '$acc@$closingDate';
-        await ledger.store.save(
-          db.balanceChecks,
-          BalanceChecksCompanion.insert(
-            id: id,
-            accountId: acc,
-            date: closingDate,
-            amount: closing,
-            note: const Value('From imported statement'),
-            deleted: const Value(false),
-          ),
-          id,
-        );
+        await ledger.saveBalanceCheck(acc, closingDate, closing, note: 'From imported statement');
       }
     });
     return ImportResult(created, linked, merged, skipped);

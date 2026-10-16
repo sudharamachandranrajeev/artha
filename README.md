@@ -3,9 +3,19 @@
 Personal finance, accounting and investment manager for Linux, Windows 11 and Android.
 First module of a wider life-management system.
 
-Status: scaffold. Built with Flutter 3.47.7; local data in an encrypted SQLite database
-(SQLite3MultipleCiphers); login and cross-device sync through a self-hosted PocketBase
-server with end-to-end encryption.
+Status: early, usable on Linux. Built with Flutter 3.47.7; local data in an encrypted SQLite
+database (SQLite3MultipleCiphers, ChaCha20-Poly1305); login and cross-device sync through a
+self-hosted PocketBase server with end-to-end encryption.
+
+What works: accounts in any currency (bank, cards, savings, ISAs, brokerage, crypto, loans),
+double-entry transactions and transfers, buys and sells with pooled cost, statement import
+(CSV, OFX, QFX, QIF) with duplicate and transfer matching, statement tallies, balance sheet,
+income statement and trial balance, a portfolio view with target allocation and rebalancing,
+insights that learn from your feedback, hints on every control, light and dark themes.
+
+On Linux the database key lives in the desktop keyring (libsecret), which must be running and
+unlocked. If the key is missing while a database exists, Artha stops rather than create a new
+key, so the old database stays recoverable.
 
 ## Develop
 

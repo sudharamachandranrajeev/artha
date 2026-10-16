@@ -26,6 +26,15 @@ void main() {
     });
   });
 
+  test('formatCompact is short and drops zero decimals', () {
+    expect(formatCompact(0, 2, symbol: '£'), '£0');
+    expect(formatCompact(4250, 2, symbol: '£'), '£42.50');
+    expect(formatCompact(80000, 2, symbol: '£'), '£800');
+    expect(formatCompact(800000, 2, symbol: '£'), '£8k');
+    expect(formatCompact(-150000, 2, symbol: '£'), '-£1.5k');
+    expect(formatCompact(1234567890, 2, symbol: '£'), '£12.3M');
+  });
+
   test('formatMinor is exact with grouping', () {
     expect(formatMinor(123456789, 2, symbol: '£'), '£1,234,567.89');
     expect(formatMinor(-5, 2), '-0.05');
