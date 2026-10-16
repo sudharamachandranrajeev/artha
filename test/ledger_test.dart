@@ -75,6 +75,18 @@ void main() {
       ),
       throwsA(isA<LedgerException>()),
     );
+    // Category lines are always in the entry currency, never converted.
+    final usd = await ledger.saveAccount(name: 'Chase', subtype: 'current', commodityId: 'USD');
+    expect(
+      () => ledger.saveEntry(
+        EntryInput(
+          date: '2026-10-01',
+          currency: 'USD',
+          postings: [PostingInput.cash(usd, -100), const PostingInput('cat.groceries', 79, 100)],
+        ),
+      ),
+      throwsA(isA<LedgerException>()),
+    );
     final b = await ledger.balances();
     expect(b[bank]!.amount, -4250);
     expect(b['cat.groceries']!.amount, 4250);

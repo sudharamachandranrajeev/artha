@@ -241,6 +241,36 @@ void main() {
       ]);
     });
 
+    test('categories hold each entry in its own currency', () async {
+      // \$50 of groceries and a \$100 opening balance, both in a GBP-seeded book.
+      await ledger.saveEntry(
+        simpleEntry(
+          date: '2026-10-02',
+          currency: 'USD',
+          accountId: usd,
+          categoryId: 'cat.groceries',
+          amount: 5000,
+        ),
+      );
+      await ledger.saveEntry(
+        simpleEntry(
+          date: '2026-10-02',
+          currency: 'USD',
+          accountId: usd,
+          categoryId: openingBalancesId,
+          amount: -10000,
+        ),
+      );
+      final r = await Reports.load(db, 'GBP');
+      final pnl = await r.incomeStatement('2026-10-01', '2026-10-31');
+      // 50 USD at 0.85 / 1.10 = 38.64 GBP, not 50 GBP.
+      expect(pnl.expenses.map((l) => (l.account.id, l.amount)), [('cat.groceries', 3864)]);
+      expect(pnl.missingRates, isEmpty);
+      final bs = await r.balanceSheet('2026-10-15');
+      expect(bs.contributed, 100000 + 7727);
+      expect(await r.integrityProblems(), isEmpty);
+    });
+
     test('account ledger keeps a running balance', () async {
       final r = await Reports.load(db, 'GBP');
       final all = await r.accountLedger(bank);
@@ -276,6 +306,16 @@ void main() {
       ]);
       expect(await r.integrityProblems(), ['bad']);
       expect((await r.trialBalance('2026-10-15')).balanced, isFalse);
+
+      // A category line converted on its own breaks the currency rule.
+      await db
+          .into(db.entries)
+          .insert(EntriesCompanion.insert(id: 'fx', date: '2026-10-02', currency: 'USD'));
+      await ledger.writePostings('fx', [
+        PostingInput.cash(usd, -100),
+        const PostingInput('cat.groceries', 79, 100),
+      ]);
+      expect(await r.integrityProblems(), unorderedEquals(['bad', 'fx']));
     });
   });
 }

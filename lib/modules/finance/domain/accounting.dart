@@ -13,6 +13,13 @@ enum AccountKind { asset, liability, equity, income, expense }
 AccountKind accountKindOf(String name) =>
     AccountKind.values.firstWhere((k) => k.name == name, orElse: () => AccountKind.asset);
 
+/// Income, expense and equity accounts. Unlike assets and liabilities they
+/// can hold several currencies: each of their postings is in its entry's
+/// currency (amount == value), and reports convert from there. Their own
+/// commodity is only a display default.
+bool isNominal(AccountKind kind) =>
+    kind == AccountKind.income || kind == AccountKind.expense || kind == AccountKind.equity;
+
 /// Finer account types. Grouping drives dashboard metrics (liquid vs invested).
 class Subtype {
   const Subtype(this.id, this.label, this.kind, this.group);
@@ -144,7 +151,13 @@ void validateEntry(EntryInput e, Map<String, AccountRef> accounts) {
     final a = accounts[p.accountId];
     if (a == null) throw LedgerException('Unknown account ${p.accountId}');
     if (a.closed) throw LedgerException('Account is closed');
-    if (a.commodityKind == 'currency' && a.commodityId == e.currency) {
+    if (isNominal(a.kind)) {
+      // Categories and equity hold whatever currency the entry is in, so
+      // their lines carry no conversion of their own.
+      if (p.amount != p.value) {
+        throw LedgerException('Category and equity lines must be in the entry currency');
+      }
+    } else if (a.commodityKind == 'currency' && a.commodityId == e.currency) {
       if (p.amount != p.value) {
         throw LedgerException('Amount and value differ in the entry currency');
       }

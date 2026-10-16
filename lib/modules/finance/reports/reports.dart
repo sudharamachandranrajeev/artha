@@ -172,28 +172,39 @@ class Reports {
     await (db.select(db.accounts)..where((a) => a.deleted.not())).get(),
   );
 
-  Future<Map<String, int>> _balances(String asOf) async {
+  /// Balances on [asOf] per account and commodity: the account's own for
+  /// assets and liabilities, each entry's currency for categories and equity.
+  Future<List<({String account, String commodity, int amount})>> _balances(String asOf) async {
     final rows = await db
         .customSelect(
-          'SELECT p.account_id, SUM(p.amount) AS amount FROM postings p '
-          'JOIN entries e ON e.id = p.entry_id WHERE e.deleted = 0 AND e.date <= ? GROUP BY p.account_id',
+          'SELECT p.account_id, '
+          "CASE WHEN a.kind IN ('asset', 'liability') THEN a.commodity_id ELSE e.currency END AS c, "
+          'SUM(p.amount) AS amount FROM postings p JOIN entries e ON e.id = p.entry_id '
+          'JOIN accounts a ON a.id = p.account_id WHERE e.deleted = 0 AND e.date <= ? '
+          'GROUP BY p.account_id, c',
           variables: [Variable(asOf)],
-          readsFrom: {db.postings, db.entries},
+          readsFrom: {db.postings, db.entries, db.accounts},
         )
         .get();
-    return {for (final r in rows) r.read<String>('account_id'): r.read<int>('amount')};
+    return [
+      for (final r in rows)
+        (
+          account: r.read<String>('account_id'),
+          commodity: r.read<String>('c'),
+          amount: r.read<int>('amount'),
+        ),
+    ];
   }
 
   Future<BalanceSheet> balanceSheet(String asOf) async {
-    final balances = await _balances(asOf);
     final missing = <String>{};
     final assets = <BalanceLine>[], liabilities = <BalanceLine>[];
     var contributed = 0, earnings = 0;
-    for (final MapEntry(key: id, value: amount) in balances.entries) {
-      final a = accounts[id];
+    for (final (:account, :commodity, :amount) in await _balances(asOf)) {
+      final a = accounts[account];
       if (a == null || amount == 0) continue;
-      final value = prices.convert(amount, a.commodityId, base, asOf);
-      if (value == null) missing.add(a.commodityId);
+      final value = prices.convert(amount, commodity, base, asOf);
+      if (value == null) missing.add(commodity);
       switch (a.kind) {
         case 'asset':
           assets.add(BalanceLine(a, amount, value));
@@ -242,12 +253,13 @@ class Reports {
     String to,
     Set<String> missing,
   ) async {
+    // Category postings are in their entry's currency (see isNominal).
     final rows = await db
         .customSelect(
-          'SELECT p.account_id, e.date, SUM(p.amount) AS amount FROM postings p '
+          'SELECT p.account_id, e.date, e.currency, SUM(p.value) AS amount FROM postings p '
           'JOIN entries e ON e.id = p.entry_id JOIN accounts a ON a.id = p.account_id '
           "WHERE e.deleted = 0 AND e.date BETWEEN ? AND ? AND a.kind IN ('income', 'expense') "
-          'GROUP BY p.account_id, e.date',
+          'GROUP BY p.account_id, e.date, e.currency',
           variables: [Variable(from), Variable(to)],
           readsFrom: {db.postings, db.entries, db.accounts},
         )
@@ -257,9 +269,10 @@ class Reports {
       final a = accounts[r.read<String>('account_id')];
       if (a == null) continue;
       final date = r.read<String>('date');
-      final v = prices.convert(r.read<int>('amount'), a.commodityId, base, date);
+      final currency = r.read<String>('currency');
+      final v = prices.convert(r.read<int>('amount'), currency, base, date);
       if (v == null) {
-        missing.add(a.commodityId);
+        missing.add(currency);
         continue;
       }
       out.add((account: a, date: date, amount: a.kind == 'income' ? -v : v));
@@ -425,7 +438,8 @@ class Reports {
           'SELECT e.id FROM entries e LEFT JOIN postings p ON p.entry_id = e.id WHERE e.deleted = 0 '
           'GROUP BY e.id HAVING COUNT(p.id) < 2 OR COALESCE(SUM(p.value), 0) <> 0 '
           'UNION SELECT p.entry_id FROM postings p LEFT JOIN accounts a ON a.id = p.account_id '
-          'WHERE a.id IS NULL OR a.deleted = 1',
+          "WHERE a.id IS NULL OR a.deleted = 1 OR (a.kind IN ('income', 'expense', 'equity') "
+          'AND p.amount <> p.value)',
           readsFrom: {db.postings, db.entries, db.accounts},
         )
         .get();
