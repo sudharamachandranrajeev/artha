@@ -1,6 +1,12 @@
 import 'dart:io';
 
 import 'package:artha/core/db/database.dart';
+import 'package:artha/core/db/store.dart';
+import 'package:artha/core/security/key_vault.dart';
+import 'package:artha/core/sync/account_service.dart';
+import 'package:artha/core/sync/pocketbase_remote.dart';
+import 'package:artha/core/sync/sync_engine.dart';
+import 'package:artha/modules/finance/domain/ledger.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:pocketbase/pocketbase.dart';
@@ -75,4 +81,32 @@ class LiveServer {
       _turn = null;
     }
   }
+}
+
+/// One app install: its own database, keychain and account service.
+class Phone {
+  Phone._(this.db, this.store, this.ledger, this.keys, this.account);
+  final AppDatabase db;
+  final Store store;
+  final Ledger ledger;
+  final KeyVault keys;
+  final AccountService account;
+
+  static Future<Phone> open({String name = ''}) async {
+    final db = await openTestDatabase();
+    final store = await Store.open(db);
+    final ledger = Ledger(store);
+    await ledger.seedDefaults('GBP');
+    final keys = KeyVault(MemorySecretStore());
+    return Phone._(
+      db,
+      store,
+      ledger,
+      keys,
+      AccountService(keys, deviceId: store.deviceId, deviceName: name, platform: 'test'),
+    );
+  }
+
+  Future<SyncEngine> engine() async => (await account.engine(store))!;
+  Future<PocketBaseRemote> remote() async => (await engine()).remote as PocketBaseRemote;
 }
