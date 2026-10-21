@@ -1,9 +1,7 @@
 import 'dart:io';
 
-import 'package:artha/app/pairing_dialogs.dart';
-import 'package:artha/core/sync/pairing.dart';
 import 'package:artha/modules/finance/domain/accounting.dart';
-import 'package:artha/ui/format.dart';
+import 'package:brahma_core/brahma_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -99,7 +97,7 @@ void main() {
     // Add a device: the QR code's link, approved in the dialog.
     await a.tapText('Add a device');
     await waitFor(a, find.byType(QrCodeView));
-    final shown = ArthaLink.parse(tester.widget<QrCodeView>(find.byType(QrCodeView)).data) as PairingLink;
+    final shown = BrahmaLink.parse(tester.widget<QrCodeView>(find.byType(QrCodeView)).data) as PairingLink;
     final tablet = await real(tester, () => Phone.open(name: 'Tablet'));
     final ticket = await real(tester, () => tablet.account.requestJoin(shown));
     await waitFor(a, find.text('Let this device in?'));

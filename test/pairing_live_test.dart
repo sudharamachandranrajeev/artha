@@ -1,6 +1,4 @@
-import 'package:artha/core/sync/account_service.dart';
-import 'package:artha/core/sync/pairing.dart';
-import 'package:artha/core/sync/sync_engine.dart';
+import 'package:brahma_core/brahma_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pocketbase/pocketbase.dart';
 
@@ -60,7 +58,7 @@ void main() {
       expect(await a.account.pairingRequest(link), isNull);
 
       final b = await phone('Pixel 8');
-      final ticket = await b.account.requestJoin(ArthaLink.parse('$link') as PairingLink);
+      final ticket = await b.account.requestJoin(BrahmaLink.parse('$link') as PairingLink);
       expect(await b.account.joinGrant(ticket), isNull, reason: 'not approved yet');
 
       final request = (await a.account.pairingRequest(link))!;

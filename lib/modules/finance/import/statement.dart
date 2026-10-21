@@ -1,7 +1,7 @@
 /// Common shape every statement parser produces.
 library;
 
-import '../../../core/dates.dart';
+import 'package:brahma_core/brahma_core.dart';
 
 class StatementLine {
   StatementLine({
@@ -59,8 +59,9 @@ class ParsedStatement {
   int get total => lines.fold(0, (s, l) => s + l.amount);
 }
 
-class StatementFormatException implements Exception {
+class StatementFormatException implements Exception, UserFacingError {
   StatementFormatException(this.message);
+  @override
   final String message;
   @override
   String toString() => message;

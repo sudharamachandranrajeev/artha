@@ -1,10 +1,8 @@
-import 'package:artha/core/db/database.dart';
-import 'package:artha/core/db/store.dart';
-import 'package:artha/core/security/crypto.dart';
-import 'package:artha/core/security/key_vault.dart';
-import 'package:artha/core/sync/sync_engine.dart';
+import 'package:artha/app/session.dart' show arthaIdentity;
+import 'package:artha/db/database.dart';
 import 'package:artha/modules/finance/domain/accounting.dart';
 import 'package:artha/modules/finance/domain/ledger.dart';
+import 'package:brahma_core/brahma_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support.dart';
@@ -113,7 +111,7 @@ void main() {
     });
 
     test('key vault keeps one database key', () async {
-      final vault = KeyVault(MemorySecretStore());
+      final vault = KeyVault(MemorySecretStore(), arthaIdentity);
       final k = await vault.databaseKey();
       expect(k, matches(RegExp(r'^[0-9a-f]{64}$')));
       expect(await vault.databaseKey(), k);

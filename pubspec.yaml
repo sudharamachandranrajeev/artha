@@ -7,6 +7,12 @@ environment:
   sdk: ^3.13.5
 
 dependencies:
+  # Shared core of the Brahma apps. pubspec_overrides.yaml points it at a
+  # local checkout during development.
+  brahma_core:
+    git:
+      url: https://github.com/sudharamachandranrajeev/brahma.git
+      path: core
   cryptography: ^2.9.0
   drift: ^2.35.2
   drift_flutter: ^0.3.1

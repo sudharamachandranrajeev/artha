@@ -1,9 +1,9 @@
 import 'dart:collection';
 
+import 'package:brahma_core/brahma_core.dart';
 import 'package:drift/drift.dart';
 
-import '../../../core/db/database.dart';
-import '../../../core/money/money.dart';
+import '../../../db/database.dart';
 
 /// A rate between two commodities and the date of the oldest price it used.
 typedef Quote = ({Rate rate, String date});

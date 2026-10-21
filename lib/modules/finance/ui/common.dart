@@ -1,9 +1,9 @@
 import 'dart:convert';
 
+import 'package:brahma_core/brahma_core.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/db/database.dart';
-import '../../../core/money/currencies.dart';
+import '../../../db/database.dart';
 import '../domain/accounting.dart';
 
 extension AccountX on Account {

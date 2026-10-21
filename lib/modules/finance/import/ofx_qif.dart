@@ -1,4 +1,5 @@
-import '../../../core/money/money.dart';
+import 'package:brahma_core/brahma_core.dart';
+
 import 'csv_statement.dart' show orderLines;
 import 'statement.dart';
 

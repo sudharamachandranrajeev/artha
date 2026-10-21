@@ -1,6 +1,7 @@
 import 'dart:convert';
 
-import '../../../core/money/money.dart';
+import 'package:brahma_core/brahma_core.dart';
+
 import 'statement.dart';
 
 /// RFC 4180 CSV: quoted fields, doubled quotes, CRLF/LF, any one-char

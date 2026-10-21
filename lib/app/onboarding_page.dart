@@ -1,15 +1,12 @@
 import 'dart:ui';
 
+import 'package:brahma_core/brahma_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../core/money/currencies.dart';
 import '../modules/finance/ui/common.dart';
-import '../ui/widgets.dart';
 import 'providers.dart';
-import 'pairing_dialogs.dart';
-import 'sync_dialogs.dart';
 
 /// The currency of the device's region, if Artha knows it.
 String _localCurrency() {

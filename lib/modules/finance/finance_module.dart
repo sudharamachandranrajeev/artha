@@ -1,6 +1,6 @@
+import 'package:brahma_core/brahma_core.dart';
 import 'package:flutter/material.dart';
 
-import '../../app/modules.dart';
 import 'ui/accounts_page.dart';
 import 'ui/dashboard_page.dart';
 import 'ui/import_page.dart';
