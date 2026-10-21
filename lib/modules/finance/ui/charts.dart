@@ -1,12 +1,9 @@
 import 'dart:math' as math;
 
+import 'package:brahma_core/brahma_core.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/money/currencies.dart';
-import '../../../ui/format.dart';
-import '../../../ui/theme.dart';
-import '../../../ui/widgets.dart';
 import '../portfolio/portfolio.dart';
 import '../reports/reports.dart';
 

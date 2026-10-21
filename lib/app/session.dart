@@ -1,43 +1,25 @@
-import 'dart:io';
+import 'package:brahma_core/brahma_core.dart';
 
-import '../core/db/database.dart';
-import '../core/db/store.dart';
-import '../core/security/key_vault.dart';
-import '../core/sync/account_service.dart';
+import '../db/database.dart';
 import '../modules/finance/domain/ledger.dart';
-import 'links.dart';
+
+/// Artha in Brahma's terms: the app's id, name and Android package.
+const arthaIdentity = AppIdentity(id: 'artha', name: 'Artha', androidPackage: 'dev.artha.artha');
 
 /// Everything a running app needs: keys, the encrypted database and the
 /// services on top of it. Opened once at start-up.
-class AppSession {
-  AppSession(this.keys, this.db, this.store, this.ledger, {String deviceName = ''})
-    : account = AccountService(
-        keys,
-        deviceId: store.deviceId,
-        deviceName: deviceName,
-        platform: Platform.operatingSystem,
-      );
+class AppSession extends CoreSession {
+  AppSession(super.keys, super.store, this.ledger, {super.deviceName});
 
-  final KeyVault keys;
-  final AppDatabase db;
-  final Store store;
   final Ledger ledger;
 
-  /// Sync account. The device name goes only into sealed pairing requests:
-  /// the server keeps its device list in clear, so that stays nameless.
-  final AccountService account;
+  @override
+  AppDatabase get db => store.db as AppDatabase;
 
-  static Future<AppSession> open(KeyVault keys) async {
-    final exists = await (await appDatabaseFile()).exists();
-    final db = openAppDatabase(await keys.databaseKey(create: !exists));
-    // Opening runs applyEncryptionKey, so a wrong key or a build without
-    // encryption fails here at start-up rather than on the first screen.
-    try {
-      final store = await Store.open(db);
-      return AppSession(keys, db, store, Ledger(store), deviceName: await PlatformLinks.deviceName());
-    } catch (_) {
-      await db.close();
-      rethrow;
-    }
-  }
+  static Future<AppSession> open(KeyVault keys) => CoreSession.open(
+    arthaIdentity,
+    keys,
+    openDatabase: AppDatabase.open,
+    build: (store, deviceName) => AppSession(keys, store, Ledger(store), deviceName: deviceName),
+  );
 }

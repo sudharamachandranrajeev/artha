@@ -1,13 +1,9 @@
 import 'dart:convert';
 
+import 'package:brahma_core/brahma_core.dart';
 import 'package:drift/drift.dart';
 
-import '../../../core/dates.dart';
-import '../../../core/db/database.dart';
-import '../../../core/db/store.dart';
-import '../../../core/money/currencies.dart';
-import '../../../core/money/money.dart';
-import '../../../core/sync/hlc.dart';
+import '../../../db/database.dart';
 import 'accounting.dart';
 
 /// Default categories. Fixed ids and the seed HLC make every device create
@@ -68,7 +64,7 @@ class Ledger {
   Ledger(this.store);
 
   final Store store;
-  AppDatabase get db => store.db;
+  AppDatabase get db => store.db as AppDatabase;
 
   /// First run: sets the base currency and, unless another device already
   /// did, the seed currency, then creates the default categories.

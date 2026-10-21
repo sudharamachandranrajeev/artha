@@ -1,17 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:brahma_core/brahma_core.dart';
 import 'package:drift/drift.dart';
 import 'package:http/http.dart' as http;
 
-import '../../../core/dates.dart';
-import '../../../core/db/database.dart';
-import '../../../core/money/currencies.dart';
-import '../../../core/money/money.dart';
+import '../../../db/database.dart';
 import '../domain/ledger.dart';
 
-class FxException implements Exception {
+class FxException implements Exception, UserFacingError {
   FxException(this.message);
+  @override
   final String message;
   @override
   String toString() => message;

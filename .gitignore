@@ -54,3 +54,6 @@ key.properties
 .env
 .env.*
 server/pb_data/
+
+# Local checkout of brahma_core (see pubspec.yaml)
+pubspec_overrides.yaml

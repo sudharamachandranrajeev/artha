@@ -5,8 +5,7 @@
 /// flip liability, equity and income signs for display ("natural" sign).
 library;
 
-import '../../../core/dates.dart';
-import '../../../core/money/money.dart';
+import 'package:brahma_core/brahma_core.dart';
 
 enum AccountKind { asset, liability, equity, income, expense }
 
@@ -130,8 +129,9 @@ class AccountRef {
   final bool closed;
 }
 
-class LedgerException implements Exception {
+class LedgerException implements Exception, UserFacingError {
   LedgerException(this.message);
+  @override
   final String message;
   @override
   String toString() => message;

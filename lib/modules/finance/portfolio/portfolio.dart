@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
-import '../../../core/db/database.dart';
+import '../../../db/database.dart';
 import '../fx/price_book.dart';
 
 /// Asset classes that targets and allocation use.

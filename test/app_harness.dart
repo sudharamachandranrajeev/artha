@@ -1,9 +1,8 @@
 import 'package:artha/app/app.dart';
 import 'package:artha/app/providers.dart';
 import 'package:artha/app/session.dart';
-import 'package:artha/core/db/store.dart';
-import 'package:artha/core/security/key_vault.dart';
 import 'package:artha/modules/finance/domain/ledger.dart';
+import 'package:brahma_core/brahma_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,7 +22,7 @@ class AppHarness {
     await tester.runAsync(() async {
       final db = await openTestDatabase();
       final store = await Store.open(db);
-      session = AppSession(KeyVault(MemorySecretStore()), db, store, Ledger(store));
+      session = AppSession(KeyVault(MemorySecretStore(), arthaIdentity), store, Ledger(store));
       // No network in tests.
       await db.setLocalSetting('fx.auto', 'off');
       await seed?.call(session.ledger);
@@ -33,7 +32,7 @@ class AppHarness {
   Future<void> run() async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [sessionProvider.overrideWithValue(session)],
+        overrides: arthaOverrides(session),
         retry: (_, _) => null,
         child: const ArthaApp(),
       ),

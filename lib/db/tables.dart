@@ -1,16 +1,5 @@
+import 'package:brahma_core/brahma_core.dart';
 import 'package:drift/drift.dart';
-
-/// Columns every synced row has. `hlc` is the hybrid-logical-clock stamp of
-/// the last write (see core/sync/hlc.dart); `deleted` is a tombstone so a
-/// deletion syncs like any other change.
-mixin SyncedRow on Table {
-  TextColumn get id => text()();
-  TextColumn get hlc => text().withDefault(const Constant(''))();
-  BoolColumn get deleted => boolean().withDefault(const Constant(false))();
-
-  @override
-  Set<Column<Object>> get primaryKey => {id};
-}
 
 /// Currencies, securities and crypto: anything an account can hold.
 @DataClassName('Commodity')
@@ -154,12 +143,6 @@ class Facts extends Table with SyncedRow {
   RealColumn get confidence => real().withDefault(const Constant(1))();
 }
 
-/// Synced preferences (base currency, hints on/off, risk profile...).
-@DataClassName('Pref')
-class Prefs extends Table with SyncedRow {
-  TextColumn get value => text()();
-}
-
 /// Saved CSV column mappings per account.
 @DataClassName('ImportProfile')
 class ImportProfiles extends Table with SyncedRow {
@@ -167,36 +150,16 @@ class ImportProfiles extends Table with SyncedRow {
   TextColumn get mapping => text()();
 }
 
-// ---- local only (never synced) ----
+// The tables sync needs; their columns come from brahma_core.
 
-/// Rows changed locally and not yet pushed. `seq` is assigned when a push
-/// starts; a local write resets it to null so the newer version goes out too.
+@DataClassName('Pref')
+class Prefs extends Table with SyncedRow, PrefColumns {}
+
 @DataClassName('OutboxItem')
-class Outbox extends Table {
-  TextColumn get entity => text()();
-  TextColumn get rowId => text()();
-  IntColumn get seq => integer().nullable()();
+class Outbox extends Table with OutboxColumns {}
 
-  @override
-  Set<Column<Object>> get primaryKey => {entity, rowId};
-}
-
-/// Highest change sequence pulled from each other device.
 @DataClassName('SyncCursor')
-class SyncCursors extends Table {
-  TextColumn get deviceId => text()();
-  IntColumn get seq => integer()();
+class SyncCursors extends Table with SyncCursorColumns {}
 
-  @override
-  Set<Column<Object>> get primaryKey => {deviceId};
-}
-
-/// Device-local settings (device id, server URL, push counter).
 @DataClassName('LocalSetting')
-class LocalSettings extends Table {
-  TextColumn get key => text()();
-  TextColumn get value => text()();
-
-  @override
-  Set<Column<Object>> get primaryKey => {key};
-}
+class LocalSettings extends Table with LocalSettingColumns {}

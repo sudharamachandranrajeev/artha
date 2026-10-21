@@ -1,12 +1,9 @@
 import 'dart:io';
 
-import 'package:artha/core/db/database.dart';
-import 'package:artha/core/db/store.dart';
-import 'package:artha/core/security/key_vault.dart';
-import 'package:artha/core/sync/account_service.dart';
-import 'package:artha/core/sync/pocketbase_remote.dart';
-import 'package:artha/core/sync/sync_engine.dart';
+import 'package:artha/app/session.dart' show arthaIdentity;
+import 'package:artha/db/database.dart';
 import 'package:artha/modules/finance/domain/ledger.dart';
+import 'package:brahma_core/brahma_core.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:pocketbase/pocketbase.dart';
@@ -97,7 +94,7 @@ class Phone {
     final store = await Store.open(db);
     final ledger = Ledger(store);
     await ledger.seedDefaults('GBP');
-    final keys = KeyVault(MemorySecretStore());
+    final keys = KeyVault(MemorySecretStore(), arthaIdentity);
     return Phone._(
       db,
       store,
