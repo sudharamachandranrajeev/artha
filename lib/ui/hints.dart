@@ -9,7 +9,7 @@ const arthaHints = <String, String>{
   'nav.portfolio': 'What your investments are worth, how they are spread and how to rebalance.',
   'nav.insights': 'Patterns in your money, and options worth exploring.',
   'nav.reports': 'Balance sheet, income statement, trial balance and checks.',
-  'nav.import': 'Bring in bank statements (CSV, OFX, QFX, QIF).',
+  'nav.import': 'Bring in bank statements (PDF, CSV, OFX, QFX, QIF).',
   'nav.settings': 'Currency, hints, exchange rates, sync and security.',
   'nav.more': 'The rest of Artha.',
   // Dashboard
@@ -68,8 +68,9 @@ const arthaHints = <String, String>{
       'Artha uses double-entry bookkeeping behind the scenes: every amount leaves one account and '
       'lands in another, so the books always balance.',
   'page.import':
-      'Export a statement from online banking as CSV, OFX, QFX or QIF. Artha spots duplicates, '
-      'matches entries you typed and merges both sides of transfers.',
+      'Choose a PDF statement or an export (CSV, OFX, QFX, QIF). PDFs are matched to their account by '
+      'number, or a new account is made, and only import when their own balances add up. Artha spots '
+      'duplicates, matches entries you typed and merges both sides of transfers.',
   'page.portfolio':
       'Holdings are valued with the latest price you recorded and today’s exchange rates. '
       'Targets drive the rebalancing and new-money suggestions.',

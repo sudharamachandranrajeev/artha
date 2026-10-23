@@ -37,16 +37,30 @@ class ParsedStatement {
     required this.lines,
     this.currency,
     this.accountNumber,
+    this.sortCode,
+    this.institution,
+    this.isCard = false,
     this.openingBalance,
     this.closingBalance,
     this.closingDate,
     this.warnings = const [],
+    this.checks = const [],
+    this.problems = const [],
   });
 
   /// Oldest first.
   final List<StatementLine> lines;
   final String? currency;
+
+  /// Account number, or a card's last four digits.
   final String? accountNumber;
+
+  /// UK sort code as 12-34-56, when the statement prints one.
+  final String? sortCode;
+
+  /// Bank or card issuer named on the statement.
+  final String? institution;
+  final bool isCard;
 
   /// Balance before the first line, when derivable.
   final int? openingBalance;
@@ -55,6 +69,14 @@ class ParsedStatement {
   final int? closingBalance;
   final String? closingDate;
   final List<String> warnings;
+
+  /// Figures on the statement that the rows agree with, and those they do not.
+  /// Only formats that print balances or totals have any.
+  final List<String> checks;
+  final List<String> problems;
+
+  /// Every printed figure was checked and agrees.
+  bool get verified => checks.isNotEmpty && problems.isEmpty;
 
   int get total => lines.fold(0, (s, l) => s + l.amount);
 }

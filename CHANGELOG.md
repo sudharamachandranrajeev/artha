@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0-beta.4
+
+- Import PDF statements from UK banks and card issuers. Artha reads the transaction table by its
+  column headings, recognises the account from its sort code and account number (or card
+  digits), and creates the account when none matches. Every row is checked against the
+  statement's own running balance, opening and closing balances and totals; a statement that
+  does not add up is not imported. Scanned PDFs without text are refused.
+
 ## 0.2.0-beta.3
 
 - Buttons have depth: a soft shadow (an accent glow on filled ones) that lifts on hover and
