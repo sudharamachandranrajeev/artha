@@ -390,4 +390,28 @@ class Ledger {
       );
     }
   });
+
+  /// Monthly budget per expense category, in base-currency minor units.
+  Future<Map<String, int>> budgets() async {
+    final rows = await (db.select(db.budgets)..where((b) => b.deleted.not())).get();
+    return {
+      for (final b in rows)
+        if (b.amount > 0) b.accountId: b.amount,
+    };
+  }
+
+  /// Sets an expense category's monthly budget; zero removes it.
+  Future<void> saveBudget(String accountId, int amount) => db.transaction(() async {
+    if (amount < 0) throw LedgerException('A budget cannot be negative');
+    final account = await (db.select(db.accounts)..where((a) => a.id.equals(accountId))).getSingleOrNull();
+    if (account == null || account.deleted || account.kind != AccountKind.expense.name) {
+      throw LedgerException('Budgets apply to expense categories only');
+    }
+    final id = 'budget.$accountId';
+    await store.save(
+      db.budgets,
+      BudgetsCompanion.insert(id: id, accountId: accountId, amount: amount, deleted: Value(amount == 0)),
+      id,
+    );
+  });
 }

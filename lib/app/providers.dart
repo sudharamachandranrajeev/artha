@@ -222,3 +222,34 @@ final entriesProvider = FutureProvider.family<List<EntryView>, ({String query, S
   }
   return [for (final e in rows) EntryView(e, byEntry[e.id] ?? const [])];
 });
+
+class BudgetLine {
+  BudgetLine(this.account, this.budget, this.spent);
+  final Account account;
+
+  /// Monthly budget and spending so far this month, in base currency.
+  final int budget;
+  final int spent;
+  double get used => budget > 0 ? spent / budget : 0;
+}
+
+/// Every open expense category with its budget and this month's spending,
+/// budgeted categories first, the most used at the top.
+final budgetsProvider = FutureProvider<List<BudgetLine>>((ref) async {
+  ref.watch(revisionProvider);
+  final reports = await ref.watch(reportsProvider.future);
+  final today = ref.watch(todayProvider);
+  final budgets = await ref.watch(sessionProvider).ledger.budgets();
+  final pnl = await reports.incomeStatement(monthStart(today), today);
+  final spent = {for (final l in pnl.expenses) l.account.id: l.amount};
+  final lines = [
+    for (final a in reports.accounts.values)
+      if (a.kind == 'expense' && !a.closed && !a.deleted) BudgetLine(a, budgets[a.id] ?? 0, spent[a.id] ?? 0),
+  ];
+  int rank(BudgetLine l) => l.budget > 0 ? 0 : 1;
+  return lines..sort((x, y) {
+    final r = rank(x).compareTo(rank(y));
+    if (r != 0) return r;
+    return x.budget > 0 ? y.used.compareTo(x.used) : y.spent.compareTo(x.spent);
+  });
+});

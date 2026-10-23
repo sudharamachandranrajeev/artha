@@ -161,4 +161,33 @@ void main() {
     expect(entries, isEmpty);
     await app.close();
   });
+
+  testWidgets('set a monthly budget and track spending against it', (tester) async {
+    final app = AppHarness(tester)..desktop();
+    await app.open(
+      seed: (ledger) async {
+        await seed(ledger);
+        final bank = await ledger.saveAccount(name: 'Monzo', subtype: 'current', commodityId: 'GBP');
+        await ledger.saveEntry(
+          simpleEntry(
+            date: today(),
+            currency: 'GBP',
+            accountId: bank,
+            categoryId: 'cat.groceries',
+            amount: 12000,
+          ),
+        );
+      },
+    );
+    await app.run();
+    await app.tapText('Set up');
+    expect(find.text('Budgets'), findsWidgets);
+    await app.tapText('Groceries');
+    await app.enter('Per month (GBP)', '100');
+    await app.tapText('Save');
+    expect(find.text('${money(2000, 'GBP')} over ${money(10000, 'GBP')}'), findsOneWidget);
+    expect(await tester.runAsync(() => app.ledger.budgets()), {'cat.groceries': 10000});
+    expect(tester.takeException(), isNull);
+    await app.close();
+  });
 }

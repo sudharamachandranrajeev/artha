@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0-beta.3
+
+- Buttons have depth: a soft shadow (an accent glow on filled ones) that lifts on hover and
+  sinks on press, with a light sheen from the top edge.
+- Monthly budgets per expense category (Dashboard > Budgets): spending this month against each
+  limit, with what is left or how far over.
+- Upcoming bills on the Dashboard: each recurring payment's next expected date, soonest first.
+  The upcoming-bills total no longer counts recurring income.
+
 ## 0.2.0-beta.2
 
 - Add motion: pages slide and fade forwards when opened, tabs fade in when switched,

@@ -55,6 +55,8 @@ const arthaHints = <String, String>{
   'settings.fx': 'Fetch European Central Bank reference rates for the currencies you use.',
   'settings.base': 'Totals, charts and reports are shown in this currency.',
   'settings.appearance': 'Pick a colour palette and light or dark. Kept on this device, never synced.',
+  'card.budgets': 'This month’s spending against the monthly budget you set for each category.',
+  'card.bills': 'Payments that repeat on a steady schedule, with the date each is next expected.',
   // Page banners
   'page.dashboard':
       'This is your financial overview. Add accounts and import a statement, and the charts fill in. '
@@ -77,4 +79,7 @@ const arthaHints = <String, String>{
   'page.reports':
       'Business-standard statements from the same ledger. The trial balance must net to zero in '
       'every currency; the integrity check confirms it.',
+  'page.budgets':
+      'Give a category a monthly limit and Artha tracks this month’s spending against it, in your '
+      'base currency. Insights warn when one goes over.',
 };
