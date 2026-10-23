@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Redesigned the interface after the paper-soft indigo reference (docs/ui-design-map.md):
+  grey canvas, borderless white cards, Inter type, indigo and sky accents, pill buttons,
+  mock-style dashboard (hero, net-worth chart card with pill badge, savings progress and
+  banner, activity and stats cards), account tiles and grouped transaction rows.
+- Theme manager in Settings > Appearance: Indigo Paper (the reference), Emerald Classic,
+  Ocean and Rose palettes, each with light and dark renderings, plus System/Light/Dark
+  mode. The choice is kept per device and applies live.
+
 ## 0.1.0-beta.1
 
 First test build for Linux, Windows and Android.

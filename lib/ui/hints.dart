@@ -54,6 +54,7 @@ const arthaHints = <String, String>{
   // Settings
   'settings.fx': 'Fetch European Central Bank reference rates for the currencies you use.',
   'settings.base': 'Totals, charts and reports are shown in this currency.',
+  'settings.appearance': 'Pick a colour palette and light or dark. Kept on this device, never synced.',
   // Page banners
   'page.dashboard':
       'This is your financial overview. Add accounts and import a statement, and the charts fill in. '

@@ -2,22 +2,29 @@ import 'package:brahma_core/brahma_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../ui/theme.dart';
+import 'appearance.dart';
 import 'modules.dart';
 import 'onboarding_page.dart';
 import 'providers.dart';
 
-class ArthaApp extends StatelessWidget {
+class ArthaApp extends ConsumerWidget {
   const ArthaApp({super.key, this.home = const _Root()});
   final Widget home;
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'Artha',
-    debugShowCheckedModeBanner: false,
-    theme: buildTheme(Brightness.light),
-    darkTheme: buildTheme(Brightness.dark),
-    home: home,
-  );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appearance = ref.watch(appearanceProvider).value ?? Appearance.fallback;
+    final palette = paletteOf(appearance);
+    return MaterialApp(
+      title: 'Artha',
+      debugShowCheckedModeBanner: false,
+      theme: buildArthaTheme(palette, Brightness.light),
+      darkTheme: buildArthaTheme(palette, Brightness.dark),
+      themeMode: appearance.mode,
+      home: home,
+    );
+  }
 }
 
 /// Onboarding until a base currency exists, then the app. Also opens the
