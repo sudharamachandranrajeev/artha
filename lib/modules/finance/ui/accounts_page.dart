@@ -321,19 +321,30 @@ class AccountDetailPage extends ConsumerWidget {
                     const SizedBox(height: 8),
                     Text(
                       lines.isEmpty ? show(0) : show(lines.first.balance),
-                      style: TextStyle(fontSize: 34, fontWeight: FontWeight.w700, color: const Color(0xFFFFFFFF))
-                          .merge(tabular),
+                      style: TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFFFFFFFF),
+                      ).merge(tabular),
                     ),
                     if (!isCurrency)
                       Text(
                         '${c?.name ?? ''} · ${c?.code ?? ''}',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xB3FFFFFF)),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xB3FFFFFF),
+                        ),
                       ),
                     if (account.notes.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(
                         account.notes,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xB3FFFFFF)),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xB3FFFFFF),
+                        ),
                       ),
                     ],
                   ],
@@ -528,7 +539,11 @@ class _AccountTile extends StatelessWidget {
               if (inBase != null)
                 Text(
                   inBase!,
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: skin.muted).merge(tabular),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: skin.muted,
+                  ).merge(tabular),
                 ),
             ],
           ),

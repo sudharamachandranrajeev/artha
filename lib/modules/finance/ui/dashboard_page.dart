@@ -63,8 +63,7 @@ class DashboardPage extends ConsumerWidget {
                 child: EmptyState(
                   icon: Icons.account_balance_wallet_outlined,
                   title: 'Start with your accounts',
-                  message:
-                      'Add a bank account, card or savings pot, then import a statement or record a few transactions.',
+                  message: 'Add a bank account, card or savings pot, then import a statement or record a few transactions.',
                   actions: [
                     FilledButton.icon(
                       onPressed: () => editAccount(context, ref),
@@ -95,8 +94,7 @@ class DashboardPage extends ConsumerWidget {
                 break;
               }
             }
-            final up =
-                d.trend.length >= 2 && d.trend.last.netWorth >= d.trend[d.trend.length - 2].netWorth;
+            final up = d.trend.length >= 2 && d.trend.last.netWorth >= d.trend[d.trend.length - 2].netWorth;
             final skin = ArthaSkin.of(context);
             final caption = TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: skin.muted);
             return Column(
@@ -151,7 +149,12 @@ class DashboardPage extends ConsumerWidget {
                 LayoutBuilder(
                   builder: (context, c) {
                     final tiles = [
-                      StatTile(label: 'Income', value: money(income, cur), icon: Icons.north_east, hint: 'chart.flows'),
+                      StatTile(
+                        label: 'Income',
+                        value: money(income, cur),
+                        icon: Icons.north_east,
+                        hint: 'chart.flows',
+                      ),
                       StatTile(
                         label: 'Spending',
                         value: money(spend, cur),
@@ -162,7 +165,8 @@ class DashboardPage extends ConsumerWidget {
                     if (c.maxWidth < 480) {
                       return Column(
                         children: [
-                          for (final t in tiles) Padding(padding: const EdgeInsets.only(bottom: 12), child: t),
+                          for (final t in tiles)
+                            Padding(padding: const EdgeInsets.only(bottom: 12), child: t),
                         ],
                       );
                     }
@@ -235,7 +239,11 @@ class DashboardPage extends ConsumerWidget {
                     child: Text('You saved ${money(net, cur)} this month'),
                   ),
                 ],
-                SectionHeader('Your activity', actionLabel: 'See all', onAction: () => _openInsights(context)),
+                SectionHeader(
+                  'Your activity',
+                  actionLabel: 'See all',
+                  onAction: () => _openInsights(context),
+                ),
                 _activityRow(facts, recurring, cur),
                 SectionHeader('Your stats'),
                 _statsGrid(d, m, cur),
@@ -332,7 +340,11 @@ class DashboardPage extends ConsumerWidget {
         }
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [Expanded(child: cards[0]), const SizedBox(width: 12), Expanded(child: cards[1])],
+          children: [
+            Expanded(child: cards[0]),
+            const SizedBox(width: 12),
+            Expanded(child: cards[1]),
+          ],
         );
       },
     );
@@ -399,13 +411,7 @@ class DashboardPage extends ConsumerWidget {
 
 /// Mock activity card: overlapping discs, title, caption and a heavy value.
 class _ActivityCard extends StatelessWidget {
-  const _ActivityCard({
-    required this.discs,
-    required this.title,
-    this.caption,
-    this.value,
-    this.onTap,
-  });
+  const _ActivityCard({required this.discs, required this.title, this.caption, this.value, this.onTap});
   final List<(IconData, bool)> discs;
   final String title;
   final String? caption;
@@ -441,7 +447,11 @@ class _ActivityCard extends StatelessWidget {
                             shape: BoxShape.circle,
                             border: Border.all(color: scheme.surface, width: 2),
                           ),
-                          child: Icon(discs[i].$1, size: 14, color: discs[i].$2 ? scheme.onPrimary : skin.onSoft),
+                          child: Icon(
+                            discs[i].$1,
+                            size: 14,
+                            color: discs[i].$2 ? scheme.onPrimary : skin.onSoft,
+                          ),
                         ),
                       ),
                   ],

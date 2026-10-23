@@ -50,8 +50,27 @@ jobs:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
+      - run: flutter pub get
+      - name: Formatting
+        run: dart format -l 110 --output=none --set-exit-if-changed lib test
       - run: flutter analyze
-      - run: flutter test
+      - name: Build sync server image
+        run: docker build --tag artha-sync:test server
+      - name: Sync server
+        run: |
+          scripts/run-local-server.sh > "$RUNNER_TEMP/server.log" 2>&1 &
+          for _ in $(seq 60); do
+            curl -sf http://127.0.0.1:8090/api/health >/dev/null && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:8090/api/health || { cat "$RUNNER_TEMP/server.log"; exit 1; }
+      - name: Tests
+        run: |
+          set -a; . server/.env; set +a
+          flutter test
+      - name: Server log
+        if: failure()
+        run: cat "$RUNNER_TEMP/server.log"
 
   android:
     needs: [version, test]

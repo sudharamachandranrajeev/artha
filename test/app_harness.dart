@@ -31,11 +31,7 @@ class AppHarness {
 
   Future<void> run() async {
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: arthaOverrides(session),
-        retry: (_, _) => null,
-        child: const ArthaApp(),
-      ),
+      ProviderScope(overrides: arthaOverrides(session), retry: (_, _) => null, child: const ArthaApp()),
     );
     await settle();
   }

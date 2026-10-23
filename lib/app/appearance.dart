@@ -18,14 +18,11 @@ final appearanceProvider = FutureProvider<Appearance>((ref) async {
   final db = ref.watch(sessionProvider).db;
   final id = await db.localSetting('ui.theme');
   final mode = await db.localSetting('ui.mode');
-  return Appearance(
-    id ?? Appearance.fallback.themeId,
-    switch (mode) {
-      'light' => ThemeMode.light,
-      'dark' => ThemeMode.dark,
-      _ => ThemeMode.system,
-    },
-  );
+  return Appearance(id ?? Appearance.fallback.themeId, switch (mode) {
+    'light' => ThemeMode.light,
+    'dark' => ThemeMode.dark,
+    _ => ThemeMode.system,
+  });
 });
 
 ArthaPalette paletteOf(Appearance appearance) =>

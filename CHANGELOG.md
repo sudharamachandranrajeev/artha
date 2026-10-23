@@ -1,7 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.2.0-beta.1
 
+- Pair devices from Settings with a QR code or link and a matching verification code.
+  New devices can join a signed-in account without entering its password.
+- Use the shared Brahma core for encrypted storage, sync, account management and common UI.
+- Share the pinned PocketBase version and checksums between local startup and Docker builds.
+- Require live sync tests and a sync-server container build before packaging a release.
 - Redesigned the interface after the paper-soft indigo reference (docs/ui-design-map.md):
   grey canvas, borderless white cards, Inter type, indigo and sky accents, pill buttons,
   mock-style dashboard (hero, net-worth chart card with pill badge, savings progress and

@@ -347,7 +347,9 @@ ThemeData buildArthaTheme(ArthaPalette palette, Brightness brightness) {
         (s) => IconThemeData(color: s.contains(WidgetState.selected) ? p.ink : p.faint, size: 22),
       ),
       labelTextStyle: WidgetStateProperty.resolveWith(
-        (s) => s.contains(WidgetState.selected) ? _t(11, FontWeight.w600, p.ink) : _t(11, FontWeight.w600, p.faint),
+        (s) => s.contains(WidgetState.selected)
+            ? _t(11, FontWeight.w600, p.ink)
+            : _t(11, FontWeight.w600, p.faint),
       ),
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
     ),
@@ -411,10 +413,7 @@ ThemeData buildArthaTheme(ArthaPalette palette, Brightness brightness) {
       filled: true,
       fillColor: p.surfaceSoft,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
-      ),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(color: m.primary, width: 1.5),
@@ -471,9 +470,7 @@ ThemeData buildArthaTheme(ArthaPalette palette, Brightness brightness) {
       thumbColor: WidgetStateProperty.resolveWith(
         (s) => s.contains(WidgetState.selected) ? m.primary : p.surface,
       ),
-      trackColor: WidgetStateProperty.resolveWith(
-        (s) => s.contains(WidgetState.selected) ? m.soft : p.track,
-      ),
+      trackColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? m.soft : p.track),
       trackOutlineColor: const WidgetStatePropertyAll(Color(0x00000000)),
     ),
     progressIndicatorTheme: ProgressIndicatorThemeData(
@@ -496,9 +493,7 @@ ThemeData buildArthaTheme(ArthaPalette palette, Brightness brightness) {
       elevation: 0,
       dragHandleColor: p.track,
       modalBarrierColor: const Color(0x59000000),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,

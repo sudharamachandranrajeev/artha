@@ -95,6 +95,7 @@ Batch requests are off. Users can see only their own records.
 - Back up the `pb_data` volume, or use **Settings > Backups** in the admin UI. Its contents stay
   encrypted, but it holds account e-mails, so store it privately.
 - To upgrade PocketBase, take the new version and its `checksums.txt` lines from
-  [the releases page](https://github.com/pocketbase/pocketbase/releases). Update both
-  `Dockerfile` and `scripts/run-local-server.sh`. Read the changelog for breaking changes before
-  you rebuild.
+  [the releases page](https://github.com/pocketbase/pocketbase/releases). Update
+  `pocketbase-version.sh`, shared by the Docker build and local launcher, and the version
+  noted at the top of this page. Read the changelog for breaking changes before you rebuild
+  with `docker compose up -d --build`.

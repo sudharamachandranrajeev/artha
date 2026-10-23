@@ -23,11 +23,7 @@ class SettingsPage extends ConsumerWidget {
     return PageScaffold(
       title: 'Settings',
       children: [
-        const SectionCard(
-          title: 'Appearance',
-          hint: 'settings.appearance',
-          child: _AppearancePicker(),
-        ),
+        const SectionCard(title: 'Appearance', hint: 'settings.appearance', child: _AppearancePicker()),
         SectionCard(
           title: 'Base currency',
           hint: 'settings.base',
@@ -88,6 +84,7 @@ class SettingsPage extends ConsumerWidget {
       ],
     );
   }
+
   Future<void> _changeBase(BuildContext context, WidgetRef ref, String current) async {
     var picked = current;
     final ok = await showDialog<bool>(
@@ -157,7 +154,11 @@ class _AppearancePicker extends ConsumerWidget {
                 label: Text('System'),
                 icon: Icon(Icons.brightness_auto_outlined),
               ),
-              ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Icons.light_mode_outlined)),
+              ButtonSegment(
+                value: ThemeMode.light,
+                label: Text('Light'),
+                icon: Icon(Icons.light_mode_outlined),
+              ),
               ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(Icons.dark_mode_outlined)),
             ],
             selected: {appearance.mode},

@@ -198,11 +198,7 @@ class DiscAvatar extends StatelessWidget {
       backgroundColor: color ?? skin.surfaceSoft,
       child: Text(
         text,
-        style: TextStyle(
-          fontSize: size * 0.32,
-          fontWeight: FontWeight.w600,
-          color: foreground ?? skin.muted,
-        ),
+        style: TextStyle(fontSize: size * 0.32, fontWeight: FontWeight.w600, color: foreground ?? skin.muted),
       ),
     );
   }
@@ -243,7 +239,11 @@ class TxRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(
+                    title,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
                   if (subtitle != null)
                     Text(
                       subtitle!,
@@ -380,10 +380,7 @@ class StatsCard extends StatelessWidget {
             Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(
-                color: solid ? scheme.primary : skin.soft,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: solid ? scheme.primary : skin.soft, shape: BoxShape.circle),
               child: Icon(icon, size: 18, color: solid ? scheme.onPrimary : skin.onSoft),
             ),
             const SizedBox(height: 12),
