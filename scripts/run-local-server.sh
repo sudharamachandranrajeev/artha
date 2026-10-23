@@ -17,14 +17,10 @@
 #   set -a; . server/.env; set +a; flutter test test/pocketbase_live_test.dart
 set -euo pipefail
 
-PB_VERSION=0.40.5
-declare -A PB_SHA256=(
-  [amd64]=1dbea1b01eb3dfe64953513859d01e759c96650c4e3264fa4eecd54b769382e4
-  [arm64]=570baa1c45d2fb92fc0073582b945ca0ece03cbf9837ccabf49a222f99dd02e3
-)
-
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 server="$root/server"
+# shellcheck source=../server/pocketbase-version.sh
+. "$server/pocketbase-version.sh"
 port="${ARTHA_PB_PORT:-8090}"
 host="${ARTHA_PB_HOST:-127.0.0.1}"
 
@@ -42,7 +38,8 @@ if [[ ! -x "$pb" ]]; then
   trap 'rm -rf "$tmp"' EXIT
   echo "Downloading PocketBase $PB_VERSION ($arch)..."
   curl -fsSLo "$tmp/$zip" "https://github.com/pocketbase/pocketbase/releases/download/v$PB_VERSION/$zip"
-  echo "${PB_SHA256[$arch]}  $tmp/$zip" | sha256sum -c --quiet -
+  sum="PB_SHA256_$arch"
+  echo "${!sum}  $tmp/$zip" | sha256sum -c --quiet -
   mkdir -p "$bin_dir"
   unzip -qo "$tmp/$zip" pocketbase -d "$bin_dir"
   chmod 755 "$pb"

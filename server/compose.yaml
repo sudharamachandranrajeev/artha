@@ -3,7 +3,7 @@
 services:
   artha-sync:
     build: .
-    image: artha-sync:0.40.5
+    image: artha-sync:local
     restart: unless-stopped
     environment:
       ARTHA_SIGNUP_CODE: ${ARTHA_SIGNUP_CODE:?set ARTHA_SIGNUP_CODE in server/.env}
