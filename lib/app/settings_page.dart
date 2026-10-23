@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../modules/finance/domain/ledger.dart' show basePrefKey;
 import '../modules/finance/ui/common.dart';
+import '../ui/theme.dart';
+import 'appearance.dart';
 import 'providers.dart';
 
 final _fxProvider = FutureProvider<({bool auto, String? last})>((ref) async {
@@ -21,6 +23,11 @@ class SettingsPage extends ConsumerWidget {
     return PageScaffold(
       title: 'Settings',
       children: [
+        const SectionCard(
+          title: 'Appearance',
+          hint: 'settings.appearance',
+          child: _AppearancePicker(),
+        ),
         SectionCard(
           title: 'Base currency',
           hint: 'settings.base',
@@ -128,5 +135,115 @@ class SettingsPage extends ConsumerWidget {
     if (ok && context.mounted) {
       showMessage(context, stored == 0 ? 'Rates are up to date.' : 'Stored $stored exchange rates.');
     }
+  }
+}
+
+/// The theme manager: brightness mode and a palette card per shipped theme.
+class _AppearancePicker extends ConsumerWidget {
+  const _AppearancePicker();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appearance = ref.watch(appearanceProvider).value ?? Appearance.fallback;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: SegmentedButton<ThemeMode>(
+            segments: const [
+              ButtonSegment(
+                value: ThemeMode.system,
+                label: Text('System'),
+                icon: Icon(Icons.brightness_auto_outlined),
+              ),
+              ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Icons.light_mode_outlined)),
+              ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(Icons.dark_mode_outlined)),
+            ],
+            selected: {appearance.mode},
+            showSelectedIcon: false,
+            onSelectionChanged: (s) => setAppearance(ref, mode: s.first),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            for (final p in arthaPalettes)
+              _PaletteCard(
+                palette: p,
+                selected: p.id == appearance.themeId,
+                onTap: () => setAppearance(ref, themeId: p.id),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _PaletteCard extends StatelessWidget {
+  const _PaletteCard({required this.palette, required this.selected, required this.onTap});
+  final ArthaPalette palette;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = ArthaSkin.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final mode = palette.mode(Theme.of(context).brightness);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final swatches = [
+      dark ? const Color(0xFF121212) : const Color(0xFFF2F2F2),
+      dark ? const Color(0xFF1C1C1F) : const Color(0xFFFFFFFF),
+      mode.primary,
+      mode.soft,
+    ];
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 232,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          border: Border.all(color: selected ? scheme.primary : skin.hairline, width: selected ? 1.5 : 1),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                for (final s in swatches) ...[
+                  Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: s,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: skin.hairline),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                const Spacer(),
+                if (selected) Icon(Icons.check_circle, size: 18, color: scheme.primary),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(palette.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 2),
+            Text(
+              palette.blurb,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: skin.muted),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

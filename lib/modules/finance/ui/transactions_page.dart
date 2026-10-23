@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
 import '../../../db/database.dart';
+import '../../../ui/components.dart';
+import '../../../ui/theme.dart';
 import 'common.dart';
 import 'entry_editor.dart';
 import 'import_page.dart';
@@ -60,7 +62,6 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
     final list = ref.watch(accountsProvider).value ?? const <Account>[];
     final accounts = {for (final a in list) a.id: a};
     final entries = ref.watch(entriesProvider((query: _query, accountId: _account)));
-    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     return PageScaffold(
       title: 'Transactions',
       banner: 'page.transactions',
@@ -145,47 +146,60 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                     : null,
               );
             }
-            String? lastDate;
-            final children = <Widget>[];
-            for (final v in rows) {
-              if (v.entry.date != lastDate) {
-                lastDate = v.entry.date;
-                children.add(
+            final skin = ArthaSkin.of(context);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final (date, list) in groupByDate(rows, (v) => v.entry.date)) ...[
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
                     child: Text(
-                      niceDate(v.entry.date),
-                      style: TextStyle(color: muted, fontWeight: FontWeight.w600),
+                      niceDate(date),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: skin.muted),
                     ),
                   ),
-                );
-              }
-              final d = describeEntry(v, accounts);
-              children.add(
-                ListTile(
-                  title: Text(d.title, overflow: TextOverflow.ellipsis),
-                  subtitle: Text(d.subtitle, overflow: TextOverflow.ellipsis),
-                  trailing: d.flow
-                      ? Amount(d.amount, v.entry.currency, signed: true, flow: true)
-                      : Text(money(d.amount, v.entry.currency), style: tabular.copyWith(color: muted)),
-                  onTap: () => openEntryEditor(context, existing: v),
-                ),
-              );
-            }
-            if (rows.length >= 500) {
-              children.add(
-                const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text('Showing the latest 500. Search or pick an account to narrow it down.'),
-                ),
-              );
-            }
-            return Card(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
+                  Card(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [for (final v in list) _txRow(v, accounts)],
+                    ),
+                  ),
+                ],
+                if (rows.length >= 500)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'Showing the latest 500. Search or pick an account to narrow it down.',
+                      style: TextStyle(color: skin.muted),
+                    ),
+                  ),
+              ],
             );
           },
         ),
       ],
+    );
+  }
+
+  Widget _txRow(EntryView v, Map<String, Account> accounts) {
+    final d = describeEntry(v, accounts);
+    return TxRow(
+      title: d.title,
+      subtitle: d.subtitle,
+      trailing: d.flow
+          ? Amount(
+              d.amount,
+              v.entry.currency,
+              signed: true,
+              flow: true,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            )
+          : Text(
+              money(d.amount, v.entry.currency),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700).merge(tabular),
+            ),
+      caption: d.flow ? (d.amount > 0 ? 'Income' : 'Spending') : 'Transfer',
+      onTap: () => openEntryEditor(context, existing: v),
     );
   }
 }

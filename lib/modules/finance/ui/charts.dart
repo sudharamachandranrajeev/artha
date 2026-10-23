@@ -4,11 +4,12 @@ import 'package:brahma_core/brahma_core.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
+import '../../../ui/theme.dart';
 import '../portfolio/portfolio.dart';
 import '../reports/reports.dart';
 
-TextStyle _axisText(BuildContext context, ChartColors c) =>
-    TextStyle(color: c.axis, fontSize: 11).merge(tabular);
+TextStyle _axisText(BuildContext context, Color color) =>
+    TextStyle(color: color, fontSize: 11).merge(tabular);
 
 double _major(int minor, String code) => minor / math.pow(10, currencyInfo(code).scale);
 
@@ -23,7 +24,7 @@ double _niceStep(double range) {
 
 FlTitlesData _titles(
   BuildContext context,
-  ChartColors c, {
+  Color axis, {
   required String Function(double) left,
   required String Function(int) bottom,
   required int count,
@@ -40,7 +41,7 @@ FlTitlesData _titles(
         interval: step,
         getTitlesWidget: (v, meta) => SideTitleWidget(
           meta: meta,
-          child: Text(left(v), style: _axisText(context, c)),
+          child: Text(left(v), style: _axisText(context, axis)),
         ),
       ),
     ),
@@ -54,7 +55,7 @@ FlTitlesData _titles(
           if (i != v || i < 0 || i >= count || (count - 1 - i) % every != 0) return const SizedBox.shrink();
           return SideTitleWidget(
             meta: meta,
-            child: Text(bottom(i), style: _axisText(context, c)),
+            child: Text(bottom(i), style: _axisText(context, axis)),
           );
         },
       ),
@@ -62,66 +63,151 @@ FlTitlesData _titles(
   );
 }
 
+/// Dashed hairline horizontals, the reference mock's grid.
+FlGridData _grid(Color track, double step) => FlGridData(
+  drawVerticalLine: false,
+  horizontalInterval: step,
+  getDrawingHorizontalLine: (_) => FlLine(color: track, strokeWidth: 1, dashArray: const [4, 6]),
+);
+
+const _chartLeft = 56.0;
+const _chartBottom = 28.0;
+const _chartRight = 8.0;
+
 /// Net worth at each month end. One series, so no legend: the card title
-/// names it.
-class NetWorthChart extends StatelessWidget {
+/// names it. The marked point carries a pill badge, as in the reference.
+class NetWorthChart extends StatefulWidget {
   const NetWorthChart(this.points, this.base, {super.key});
   final List<NetWorthPoint> points;
   final String base;
 
   @override
+  State<NetWorthChart> createState() => _NetWorthChartState();
+}
+
+class _NetWorthChartState extends State<NetWorthChart> {
+  int? _touched;
+
+  @override
   Widget build(BuildContext context) {
-    final c = ChartColors.of(context);
+    final skin = ArthaSkin.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final ys = [for (final p in points) _major(p.netWorth, base)];
+    final points = widget.points;
+    final ys = [for (final p in points) _major(p.netWorth, widget.base)];
     final lo = math.min(0.0, ys.reduce(math.min)), hi = math.max(0.0, ys.reduce(math.max));
     final step = _niceStep(hi - lo);
-    final scale = math.pow(10, currencyInfo(base).scale);
-    final line = c.series[0];
+    final minY = (lo / step).floor() * step;
+    final maxY = math.max((hi / step).ceil() * step, step);
+    final scale = math.pow(10, currencyInfo(widget.base).scale);
+    final line = skin.series[0];
+    final idx = (_touched ?? points.length - 1).clamp(0, points.length - 1);
     return SizedBox(
       height: 240,
-      child: LineChart(
-        LineChartData(
-          minY: (lo / step).floor() * step,
-          maxY: math.max((hi / step).ceil() * step, step),
-          gridData: FlGridData(
-            drawVerticalLine: false,
-            horizontalInterval: step,
-            getDrawingHorizontalLine: (_) => FlLine(color: c.grid, strokeWidth: 1),
-          ),
-          borderData: FlBorderData(show: false),
-          titlesData: _titles(
-            context,
-            c,
-            left: (v) => money((v * scale).round(), base, compact: true),
-            bottom: (i) => monthLabel(points[i].date.substring(0, 7)),
-            count: points.length,
-            step: step,
-          ),
-          lineTouchData: LineTouchData(
-            touchTooltipData: LineTouchTooltipData(
-              getTooltipColor: (_) => scheme.inverseSurface,
-              getTooltipItems: (spots) => [
-                for (final s in spots)
-                  LineTooltipItem(
-                    '${niceDate(points[s.x.round()].date)}\n'
-                    '${money(points[s.x.round()].netWorth, base)}',
-                    TextStyle(color: scheme.onInverseSurface).merge(tabular),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final plotW = math.max(1.0, constraints.maxWidth - _chartLeft - _chartRight);
+          final plotH = 240.0 - _chartBottom;
+          final x = points.length == 1
+              ? _chartLeft + plotW / 2
+              : _chartLeft + (idx / (points.length - 1)) * plotW;
+          final yFrac = maxY == minY ? 1.0 : ((ys[idx] - minY) / (maxY - minY)).clamp(0.0, 1.0);
+          final y = (1 - yFrac) * plotH;
+          return Stack(
+            children: [
+              LineChart(
+                LineChartData(
+                  minY: minY,
+                  maxY: maxY,
+                  gridData: _grid(skin.track, step),
+                  borderData: FlBorderData(show: false),
+                  titlesData: _titles(
+                    context,
+                    skin.faint,
+                    left: (v) => money((v * scale).round(), widget.base, compact: true),
+                    bottom: (i) => monthLabel(points[i].date.substring(0, 7)),
+                    count: points.length,
+                    step: step,
                   ),
-              ],
-            ),
-          ),
-          lineBarsData: [
-            LineChartBarData(
-              spots: [for (var i = 0; i < ys.length; i++) FlSpot(i.toDouble(), ys[i])],
-              color: line,
-              barWidth: 2,
-              isStrokeCapRound: true,
-              dotData: FlDotData(show: points.length <= 2),
-              belowBarData: BarAreaData(show: true, color: line.withValues(alpha: 0.10)),
-            ),
-          ],
-        ),
+                  extraLinesData: ExtraLinesData(
+                    verticalLines: [
+                      VerticalLine(
+                        x: idx.toDouble(),
+                        color: line.withValues(alpha: 0.55),
+                        strokeWidth: 1,
+                        dashArray: const [4, 4],
+                      ),
+                    ],
+                  ),
+                  lineTouchData: LineTouchData(
+                    touchCallback: (event, response) {
+                      final spots = response?.lineBarSpots;
+                      if (spots == null || spots.isEmpty) return;
+                      final i = spots.first.x.round().clamp(0, points.length - 1);
+                      if (i != _touched) setState(() => _touched = i);
+                    },
+                    getTouchedSpotIndicator: (bar, spots) => [
+                      for (final _ in spots)
+                        const TouchedSpotIndicatorData(
+                          FlLine(color: Colors.transparent, strokeWidth: 0),
+                          FlDotData(show: false),
+                        ),
+                    ],
+                    touchTooltipData: LineTouchTooltipData(
+                      getTooltipColor: (_) => const Color(0x00000000),
+                      tooltipPadding: EdgeInsets.zero,
+                      getTooltipItems: (spots) => [
+                        for (final _ in spots) LineTooltipItem('', const TextStyle(fontSize: 0)),
+                      ],
+                    ),
+                  ),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: [for (var i = 0; i < ys.length; i++) FlSpot(i.toDouble(), ys[i])],
+                      color: line,
+                      barWidth: 2.5,
+                      isStrokeCapRound: true,
+                      dotData: FlDotData(
+                        show: true,
+                        getDotPainter: (spot, percent, bar, i) => i == idx
+                            ? FlDotCirclePainter(
+                                color: scheme.surface,
+                                strokeWidth: 2.5,
+                                strokeColor: line,
+                                radius: 4.5,
+                              )
+                            : FlDotCirclePainter(
+                                color: const Color(0x00000000),
+                                strokeWidth: 0,
+                                strokeColor: const Color(0x00000000),
+                                radius: 0,
+                              ),
+                      ),
+                      belowBarData: BarAreaData(show: true, color: line.withValues(alpha: 0.10)),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                left: (x - 30).clamp(0.0, math.max(0.0, constraints.maxWidth - 60)),
+                top: (y - 36).clamp(0.0, 240.0 - 30),
+                child: IgnorePointer(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(color: line, borderRadius: BorderRadius.circular(10)),
+                    child: Text(
+                      money(points[idx].netWorth, widget.base, compact: true),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFFFFFFF),
+                      ).merge(tabular),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -135,9 +221,9 @@ class FlowsChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = ChartColors.of(context);
+    final skin = ArthaSkin.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final income = c.series[0], spend = c.series[1];
+    final income = skin.series[0], spend = skin.series[1];
     final hi = flows.fold(
       0.0,
       (m, f) => math.max(m, math.max(_major(f.income, base), _major(f.expenses, base))),
@@ -161,15 +247,11 @@ class FlowsChart extends StatelessWidget {
           child: BarChart(
             BarChartData(
               maxY: math.max((hi / step).ceil() * step, step),
-              gridData: FlGridData(
-                drawVerticalLine: false,
-                horizontalInterval: step,
-                getDrawingHorizontalLine: (_) => FlLine(color: c.grid, strokeWidth: 1),
-              ),
+              gridData: _grid(skin.track, step),
               borderData: FlBorderData(show: false),
               titlesData: _titles(
                 context,
-                c,
+                skin.faint,
                 left: (v) => money((v * scale).round(), base, compact: true),
                 bottom: (i) => monthLabel(flows[i].month),
                 count: flows.length,
@@ -248,7 +330,7 @@ class AllocationBar extends StatelessWidget {
       for (final k in ChartColors.classOrder)
         if ((byClass[k] ?? 0) > 0 || (targets[k] ?? 0) > 0) k,
     ];
-    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    final muted = ArthaSkin.of(context).muted;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

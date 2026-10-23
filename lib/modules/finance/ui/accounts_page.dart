@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
 import '../../../db/database.dart';
+import '../../../ui/components.dart';
+import '../../../ui/theme.dart';
 import '../domain/accounting.dart';
 import '../domain/ledger.dart';
 import '../portfolio/portfolio.dart';
@@ -143,32 +145,65 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
               );
             }
 
+            Widget gridTile(Account a, int i) {
+              final raw = balances[a.id]?.amount ?? 0;
+              final c = commodities[a.commodityId];
+              final isCurrency = c?.isCurrency ?? true;
+              final own = isCurrency
+                  ? money(a.natural(raw), a.commodityId)
+                  : '${units(raw, scaleOf(commodities, a.commodityId))} ${c?.code ?? ''}';
+              final inBase = baseValues[a.id];
+              final t = tally[a.id];
+              return _AccountTile(
+                account: a,
+                own: own,
+                inBase: (!isCurrency || a.commodityId != base) && inBase != null
+                    ? money(a.natural(inBase), base)
+                    : null,
+                tallied: t?.tallied,
+                hasTally: t != null,
+                solid: i.isOdd,
+                onTap: () =>
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => AccountDetailPage(a.id))),
+              );
+            }
+
             final open = real.where((a) => !a.closed).toList();
             final closed = real.where((a) => a.closed).toList();
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 for (final g in groupLabels.entries)
-                  if (open.any((a) => a.type.group == g.key))
-                    SectionCard(
-                      title: g.value,
-                      padding: const EdgeInsets.only(bottom: 8),
-                      trailing: Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: Text(
-                          money(
-                            open
-                                .where((a) => a.type.group == g.key)
-                                .fold(0, (s, a) => s + a.natural(baseValues[a.id] ?? 0)),
-                            base,
-                          ),
-                          style: tabular,
+                  if (open.any((a) => a.type.group == g.key)) ...[
+                    SectionHeader(
+                      g.value,
+                      trailing: Text(
+                        money(
+                          open
+                              .where((a) => a.type.group == g.key)
+                              .fold(0, (s, a) => s + a.natural(baseValues[a.id] ?? 0)),
+                          base,
                         ),
-                      ),
-                      child: Column(
-                        children: [for (final a in open.where((a) => a.type.group == g.key)) tile(a)],
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700).merge(tabular),
                       ),
                     ),
+                    LayoutBuilder(
+                      builder: (context, c) {
+                        final list = open.where((a) => a.type.group == g.key).toList();
+                        final cols = (c.maxWidth / 190).floor().clamp(1, 4);
+                        final w = (c.maxWidth - 12 * (cols - 1)) / cols;
+                        return Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            for (var i = 0; i < list.length; i++)
+                              SizedBox(width: w, child: gridTile(list[i], i)),
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                 if (closed.isNotEmpty)
                   Card(
                     child: ExpansionTile(
@@ -262,73 +297,91 @@ class AccountDetailPage extends ConsumerWidget {
           builder: (lines) => Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        [
-                          account.type.label,
-                          if ((account.institution ?? '').isNotEmpty) account.institution!,
-                          if ((account.number ?? '').isNotEmpty) account.number!,
-                        ].join(' · '),
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              Container(
+                decoration: BoxDecoration(
+                  color: ArthaSkin.of(context).primaryDeep,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      [
+                        account.type.label,
+                        if ((account.institution ?? '').isNotEmpty) account.institution!,
+                        if ((account.number ?? '').isNotEmpty) account.number!,
+                      ].join(' · '),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xB3FFFFFF),
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      lines.isEmpty ? show(0) : show(lines.first.balance),
+                      style: TextStyle(fontSize: 34, fontWeight: FontWeight.w700, color: const Color(0xFFFFFFFF))
+                          .merge(tabular),
+                    ),
+                    if (!isCurrency)
+                      Text(
+                        '${c?.name ?? ''} · ${c?.code ?? ''}',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xB3FFFFFF)),
+                      ),
+                    if (account.notes.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(
-                        lines.isEmpty ? show(0) : show(lines.first.balance),
-                        style: Theme.of(context).textTheme.headlineMedium?.merge(tabular),
+                        account.notes,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xB3FFFFFF)),
                       ),
-                      if (!isCurrency) Text('${c?.name ?? ''} · ${c?.code ?? ''}'),
-                      if (account.notes.isNotEmpty) ...[const SizedBox(height: 8), Text(account.notes)],
                     ],
-                  ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
               if (lines.isEmpty)
                 const EmptyState(icon: Icons.receipt_long_outlined, title: 'No transactions yet')
               else
-                Card(
-                  child: Column(
-                    children: [
-                      for (final l in lines)
-                        ListTile(
-                          title: Text(
-                            l.payee.isNotEmpty
-                                ? l.payee
-                                : (l.memo.isNotEmpty ? l.memo : l.counterparts.join(', ')),
-                            overflow: TextOverflow.ellipsis,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final (date, list) in groupByDate(lines, (l) => l.date)) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+                        child: Text(
+                          niceDate(date),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: ArthaSkin.of(context).muted,
                           ),
-                          subtitle: Text(
-                            '${niceDate(l.date)} · ${l.counterparts.join(', ')}',
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                isCurrency
-                                    ? money(l.amount, account.commodityId, signed: true)
-                                    : units(l.amount, scale),
-                                style: tabular,
-                              ),
-                              Text(
-                                show(l.balance),
-                                style: tabular.copyWith(
-                                  fontSize: 12,
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                          onTap: () => openEntryById(context, ref, l.entryId),
                         ),
+                      ),
+                      Card(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (final l in list)
+                              TxRow(
+                                title: l.payee.isNotEmpty
+                                    ? l.payee
+                                    : (l.memo.isNotEmpty ? l.memo : l.counterparts.join(', ')),
+                                subtitle: l.counterparts.join(', '),
+                                trailing: Text(
+                                  isCurrency
+                                      ? money(l.amount, account.commodityId, signed: true)
+                                      : units(l.amount, scale),
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700).merge(tabular),
+                                ),
+                                caption: show(l.balance),
+                                onTap: () => openEntryById(context, ref, l.entryId),
+                              ),
+                          ],
+                        ),
+                      ),
                     ],
-                  ),
+                  ],
                 ),
             ],
           ),
@@ -410,6 +463,78 @@ Future<void> _balanceCheck(BuildContext context, WidgetRef ref, Account account)
                   'Look for missing or duplicate transactions.',
       );
     }
+  }
+}
+
+/// Mock account tile: icon square, name, own balance and base-currency value.
+class _AccountTile extends StatelessWidget {
+  const _AccountTile({
+    required this.account,
+    required this.own,
+    this.inBase,
+    this.tallied,
+    this.hasTally = false,
+    this.solid = false,
+    required this.onTap,
+  });
+  final Account account;
+  final String own;
+  final String? inBase;
+  final bool? tallied;
+  final bool hasTally;
+  final bool solid;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = ArthaSkin.of(context);
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  IconSquare(subtypeIcon(account.subtype), solid: solid),
+                  if (hasTally)
+                    Hint(
+                      'accounts.balance',
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Icon(
+                          tallied! ? Status.good.icon : Status.serious.icon,
+                          size: 16,
+                          color: tallied! ? Status.good.color : Status.serious.color,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                account.name,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                own,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: skin.muted).merge(tabular),
+              ),
+              if (inBase != null)
+                Text(
+                  inBase!,
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: skin.muted).merge(tabular),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
