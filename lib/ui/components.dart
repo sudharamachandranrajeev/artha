@@ -104,12 +104,18 @@ class CircleActionButton extends StatelessWidget {
     return IconButton(
       tooltip: tooltip,
       onPressed: onPressed,
-      style: IconButton.styleFrom(
-        backgroundColor: solid ? scheme.onSurface : scheme.surface,
-        foregroundColor: solid ? skin.canvas : scheme.onSurface,
-        shape: const CircleBorder(),
-        fixedSize: const Size(40, 40),
-      ),
+      style:
+          IconButton.styleFrom(
+            backgroundColor: solid ? scheme.onSurface : scheme.surface,
+            foregroundColor: solid ? skin.canvas : scheme.onSurface,
+            shape: const CircleBorder(),
+            fixedSize: const Size(40, 40),
+          ).merge(
+            buttonDepth(
+              const CircleBorder(),
+              solid ? scheme.primary.withValues(alpha: 0.4) : const Color(0x26000000),
+            ),
+          ),
       icon: Icon(icon, size: 20),
     );
   }

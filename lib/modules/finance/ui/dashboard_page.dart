@@ -8,6 +8,7 @@ import '../../../ui/components.dart';
 import '../../../ui/theme.dart';
 import '../insights/insights.dart' show Metrics, Recurring;
 import 'accounts_page.dart';
+import 'budgets_page.dart';
 import 'charts.dart';
 import 'common.dart';
 import 'entry_editor.dart';
@@ -16,6 +17,9 @@ import 'insights_page.dart';
 
 void _openInsights(BuildContext context) =>
     Navigator.push(context, MaterialPageRoute(builder: (_) => const InsightsPage()));
+
+void _openBudgets(BuildContext context) =>
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const BudgetsPage()));
 
 class DashboardPage extends ConsumerWidget {
   const DashboardPage({super.key});
@@ -26,6 +30,7 @@ class DashboardPage extends ConsumerWidget {
     final insights = ref.watch(insightsProvider);
     final accounts = ref.watch(accountsProvider).value ?? const [];
     final hasAccounts = accounts.any((a) => a.isReal);
+    final budgets = ref.watch(budgetsProvider).value ?? const <BudgetLine>[];
     return PageScaffold(
       title: 'Dashboard',
       banner: 'page.dashboard',
@@ -170,13 +175,16 @@ class DashboardPage extends ConsumerWidget {
                         ],
                       );
                     }
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: tiles[0]),
-                        const SizedBox(width: 12),
-                        Expanded(child: tiles[1]),
-                      ],
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: tiles[0]),
+                          const SizedBox(width: 12),
+                          Expanded(child: tiles[1]),
+                        ],
+                      ),
                     );
                   },
                 ),
@@ -245,6 +253,16 @@ class DashboardPage extends ConsumerWidget {
                   onAction: () => _openInsights(context),
                 ),
                 _activityRow(facts, recurring, cur),
+                SectionHeader(
+                  'Budgets',
+                  actionLabel: budgets.any((b) => b.budget > 0) ? 'Manage' : 'Set up',
+                  onAction: () => _openBudgets(context),
+                ),
+                Hint('card.budgets', child: _budgetsCard(context, ref, budgets, cur)),
+                if (recurring.any((r) => r.amount < 0)) ...[
+                  SectionHeader('Upcoming bills'),
+                  Hint('card.bills', child: _billsCard(context, recurring, ref.watch(todayProvider), cur)),
+                ],
                 SectionHeader('Your stats'),
                 _statsGrid(d, m, cur),
                 SectionHeader('Income and spending'),
@@ -313,7 +331,62 @@ class DashboardPage extends ConsumerWidget {
     );
   }
 
+  Widget _budgetsCard(BuildContext context, WidgetRef ref, List<BudgetLine> lines, String cur) {
+    final set = lines.where((l) => l.budget > 0).take(4).toList();
+    if (set.isEmpty) {
+      return Card(
+        child: ListTile(
+          leading: const Icon(Icons.savings_outlined),
+          title: const Text('Set monthly budgets'),
+          subtitle: const Text('Pick the categories to keep an eye on.'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _openBudgets(context),
+        ),
+      );
+    }
+    return Card(
+      child: Column(
+        children: [for (final l in set) BudgetRow(l, cur, onTap: () => editBudget(context, ref, l, cur))],
+      ),
+    );
+  }
+
+  /// The next payment of each recurring bill, soonest first.
+  Widget _billsCard(BuildContext context, List<Recurring> recurring, String today, String cur) {
+    final bills = recurring.where((r) => r.amount < 0).toList()
+      ..sort((a, b) => a.nextDate.compareTo(b.nextDate));
+    final muted = ArthaSkin.of(context).muted;
+    String due(String date) {
+      final d = daysBetween(date, today);
+      return d < 0
+          ? 'Overdue by ${-d} days'
+          : d == 0
+          ? 'Due today'
+          : d == 1
+          ? 'Due tomorrow'
+          : 'Due in $d days';
+    }
+
+    return Card(
+      child: Column(
+        children: [
+          for (final b in bills.take(5))
+            ListTile(
+              leading: Icon(Icons.event_repeat, color: muted),
+              title: Text(b.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: Text('${due(b.nextDate)} · ${niceDate(b.nextDate)} · ${b.cadence.name}'),
+              trailing: Text(
+                money(b.amount, cur, signed: true),
+                style: const TextStyle(fontWeight: FontWeight.w700).merge(tabular),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _activityRow(List<Fact> facts, List<Recurring> recurring, String cur) {
+    final bills = recurring.where((r) => r.amount < 0).toList();
     final cards = <Widget>[
       if (facts.isNotEmpty)
         _ActivityCard(
@@ -322,12 +395,12 @@ class DashboardPage extends ConsumerWidget {
           caption: facts.first.body,
           onTap: (context) => _openInsights(context),
         ),
-      if (recurring.isNotEmpty)
+      if (bills.isNotEmpty)
         _ActivityCard(
           discs: const [(Icons.receipt_long_outlined, false), (Icons.payments_outlined, true)],
           title: 'Upcoming bills',
-          caption: '${recurring.length} recurring · ${recurring.first.label}',
-          value: money(recurring.fold(0, (s, r) => s + r.amount), cur),
+          caption: '${bills.length} recurring · ${bills.first.label}',
+          value: money(bills.fold(0, (s, r) => s + r.amount), cur),
         ),
     ];
     if (cards.isEmpty) return const SizedBox.shrink();

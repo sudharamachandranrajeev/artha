@@ -306,6 +306,7 @@ ThemeData buildArthaTheme(ArthaPalette palette, Brightness brightness) {
     onInverseSurface: p.canvas,
     shadow: const Color(0x00000000),
   );
+  final dark = brightness == Brightness.dark;
   final card20 = BorderRadius.circular(20);
   final stadium = const StadiumBorder();
   return ThemeData(
@@ -376,7 +377,7 @@ ThemeData buildArthaTheme(ArthaPalette palette, Brightness brightness) {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         shape: stadium,
         textStyle: _t(14, FontWeight.w600, p.canvas),
-      ),
+      ).merge(buttonDepth(stadium, m.primary.withValues(alpha: dark ? 0.55 : 0.35))),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
@@ -388,7 +389,7 @@ ThemeData buildArthaTheme(ArthaPalette palette, Brightness brightness) {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         shape: stadium,
         textStyle: _t(14, FontWeight.w600, p.ink),
-      ),
+      ).merge(buttonDepth(stadium, const Color(0x33000000))),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
@@ -404,10 +405,10 @@ ThemeData buildArthaTheme(ArthaPalette palette, Brightness brightness) {
     floatingActionButtonTheme: FloatingActionButtonThemeData(
       backgroundColor: p.ink,
       foregroundColor: p.canvas,
-      elevation: 0,
-      focusElevation: 0,
-      highlightElevation: 0,
-      hoverElevation: 0,
+      elevation: 3,
+      focusElevation: 4,
+      highlightElevation: 1,
+      hoverElevation: 6,
       shape: stadium,
       extendedTextStyle: _t(14, FontWeight.w600, p.canvas),
     ),
@@ -555,3 +556,33 @@ ThemeData buildArthaTheme(ArthaPalette palette, Brightness brightness) {
     ],
   );
 }
+
+/// Gives a button depth: a soft shadow (a coloured glow on filled buttons)
+/// that grows on hover and sinks on press, and a sheen from the top edge
+/// that flips to a shade when pressed. Disabled buttons stay flat.
+ButtonStyle buttonDepth(OutlinedBorder shape, Color shadow) => ButtonStyle(
+  shadowColor: WidgetStatePropertyAll(shadow),
+  elevation: WidgetStateProperty.resolveWith((s) {
+    if (s.contains(WidgetState.disabled) || s.contains(WidgetState.pressed)) return 0;
+    if (s.contains(WidgetState.hovered) || s.contains(WidgetState.focused)) return 5;
+    return 2;
+  }),
+  animationDuration: Motion.short,
+  backgroundBuilder: (context, states, child) {
+    if (states.contains(WidgetState.disabled)) return child!;
+    final pressed = states.contains(WidgetState.pressed);
+    return DecoratedBox(
+      decoration: ShapeDecoration(
+        shape: shape,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: pressed
+              ? const [Color(0x14000000), Color(0x00000000)]
+              : const [Color(0x1FFFFFFF), Color(0x00FFFFFF), Color(0x0F000000)],
+        ),
+      ),
+      child: child,
+    );
+  },
+);

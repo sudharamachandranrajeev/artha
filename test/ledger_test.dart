@@ -54,6 +54,15 @@ void main() {
     expect(await currencyOf('cat.groceries'), 'GBP');
   });
 
+  test('budgets apply to expense categories and zero removes them', () async {
+    await ledger.saveBudget('cat.groceries', 30000);
+    expect(await ledger.budgets(), {'cat.groceries': 30000});
+    await expectLater(ledger.saveBudget('cat.salary', 100), throwsA(isA<LedgerException>()));
+    await expectLater(ledger.saveBudget('cat.groceries', -1), throwsA(isA<LedgerException>()));
+    await ledger.saveBudget('cat.groceries', 0);
+    expect(await ledger.budgets(), isEmpty);
+  });
+
   test('balanced entries post, unbalanced ones are refused', () async {
     final bank = await ledger.saveAccount(name: 'Monzo', subtype: 'current', commodityId: 'GBP');
     await ledger.saveEntry(
