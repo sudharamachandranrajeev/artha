@@ -7,9 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
 import '../../../db/database.dart';
+import '../domain/accounting.dart';
 import '../import/csv_statement.dart';
 import '../import/import_service.dart';
 import '../import/ofx_qif.dart';
+import '../import/pdf_statement.dart';
+import '../import/pdf_text.dart';
 import '../import/statement.dart';
 import 'accounts_page.dart';
 import 'common.dart';
@@ -27,6 +30,15 @@ class ImportPage extends ConsumerStatefulWidget {
 class _ImportPageState extends ConsumerState<ImportPage> {
   String? _accountId;
   String? _fileName, _text, _ext;
+
+  /// A PDF statement once read; the account can change without reading again.
+  ParsedStatement? _pdf;
+
+  /// How the account was chosen for a PDF: recognised, or new.
+  String? _recognised;
+
+  /// The user confirmed a statement that prints no figures to check against.
+  bool _confirmed = false;
   List<List<String>>? _csv;
   CsvMapping? _mapping;
   ImportPlan? _plan;
@@ -39,7 +51,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     final f = await FilePicker.pickFile(
       dialogTitle: 'Choose a statement',
       type: FileType.custom,
-      allowedExtensions: const ['csv', 'txt', 'ofx', 'qfx', 'qif'],
+      allowedExtensions: const ['pdf', 'csv', 'txt', 'ofx', 'qfx', 'qif'],
     );
     if (f == null || !mounted) return;
     final size = await f.length();
@@ -52,6 +64,30 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     if (bytes.length > _maxBytes) {
       return showError(context, StatementFormatException('That file is over 20 MB; it is not a statement'));
     }
+    final ext = (f.extension ?? '').replaceFirst('.', '').toLowerCase();
+    if (ext == 'pdf' || (bytes.length > 4 && latin1.decode(bytes.sublist(0, 5)) == '%PDF-')) {
+      setState(() {
+        _fileName = f.name;
+        _ext = 'pdf';
+        _text = null;
+        _csv = null;
+        _mapping = null;
+        _plan = null;
+        _result = null;
+        _pdf = null;
+        _recognised = null;
+        _confirmed = false;
+        _busy = true;
+      });
+      await guarded(context, () async {
+        final st = parsePdfStatement(await readPdfLines(bytes));
+        if (st.lines.isEmpty) throw StatementFormatException('No transactions found in the statement');
+        setState(() => _pdf = st);
+        await _planPdf(recognise: true);
+      });
+      if (mounted) setState(() => _busy = false);
+      return;
+    }
     String text;
     try {
       text = utf8.decode(bytes);
@@ -62,7 +98,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     if (text.startsWith('﻿')) text = text.substring(1);
     setState(() {
       _fileName = f.name;
-      _ext = (f.extension ?? '').replaceFirst('.', '').toLowerCase();
+      _ext = ext;
+      _pdf = null;
+      _recognised = null;
       _text = text;
       _csv = null;
       _mapping = null;
@@ -118,6 +156,31 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     if (ok) await ref.read(sessionProvider).ledger.setPref(_prefKey, m.toJson());
   }
 
+  /// Plans a read PDF into the chosen account, or with [recognise] into the
+  /// account its numbers name, or a new one when none does.
+  Future<void> _planPdf({bool recognise = false}) async {
+    final st = _pdf!;
+    final service = ImportService(ref.read(sessionProvider).ledger);
+    if (recognise) {
+      final matches = await service.matchAccounts(st);
+      if (matches.isNotEmpty) {
+        _accountId = matches.first.id;
+        _recognised = 'Recognised as ${matches.first.name} from its account number.';
+      } else {
+        final base = ref.read(setupProvider).value ?? 'GBP';
+        final plan = await service.planFor(service.newAccountFor(st, base), st, create: true);
+        setState(() {
+          _accountId = null;
+          _recognised = null;
+          _plan = plan;
+        });
+        return;
+      }
+    }
+    final plan = await service.plan(_accountId!, st);
+    setState(() => _plan = plan);
+  }
+
   Future<void> _review(ParsedStatement st) async {
     if (st.lines.isEmpty) throw StatementFormatException('No transactions found in the file');
     final plan = await ImportService(ref.read(sessionProvider).ledger).plan(_accountId!, st);
@@ -128,7 +191,10 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     setState(() => _busy = true);
     await guarded(context, () async {
       final r = await ref.mutate((s) => ImportService(s.ledger).commit(_plan!));
-      setState(() => _result = r);
+      setState(() {
+        _accountId = _plan!.account.id;
+        _result = r;
+      });
     });
     if (mounted) setState(() => _busy = false);
   }
@@ -170,27 +236,44 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                     _accountId = v;
                     _plan = null;
                     _result = null;
-                    if (_text != null) _read();
+                    _recognised = null;
+                    if (_pdf != null && v != null) {
+                      guarded(context, _planPdf);
+                    } else if (_text != null) {
+                      _read();
+                    }
                   }),
                 ),
               const SizedBox(height: 12),
               Row(
                 children: [
                   FilledButton.icon(
-                    onPressed: _accountId == null || _busy ? null : _pick,
+                    onPressed: _busy ? null : _pick,
                     icon: const Icon(Icons.upload_file),
                     label: const Text('Choose file'),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      _fileName ?? 'CSV, OFX, QFX or QIF',
+                      _fileName ?? 'PDF, CSV, OFX, QFX or QIF',
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                   ),
                 ],
               ),
+              if (_busy && _pdf == null && _ext == 'pdf')
+                const Padding(padding: EdgeInsets.only(top: 12), child: LinearProgressIndicator()),
+              if (_recognised != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: StatusLabel(Status.good, _recognised!),
+                ),
+              if (_text != null && _accountId == null)
+                const Padding(
+                  padding: EdgeInsets.only(top: 12),
+                  child: StatusLabel(Status.info, 'Choose the account this file belongs to.'),
+                ),
             ],
           ),
         ),
@@ -317,6 +400,10 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       ..sort((a, b) => a.kind == b.kind ? a.name.compareTo(b.name) : b.kind.compareTo(a.kind));
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final toCreate = p.count(RowStatus.fresh) + p.count(RowStatus.matched) + p.count(RowStatus.transfer);
+    final isPdf = _pdf != null;
+    // A PDF imports only when its own figures agree with the rows read, or,
+    // when it prints none, once the user has checked it.
+    final blocked = isPdf && (p.statement.problems.isNotEmpty || (!p.statement.verified && !_confirmed));
     (Status, String) label(RowStatus s) => switch (s) {
       RowStatus.fresh => (Status.info, 'New'),
       RowStatus.duplicate => (Status.warning, 'Already imported'),
@@ -330,6 +417,8 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (p.createsAccount) _newAccountPanel(p),
+          if (isPdf) _checksPanel(p.statement),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Wrap(
@@ -435,9 +524,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                 TextButton(onPressed: () => setState(() => _plan = null), child: const Text('Back')),
                 const SizedBox(width: 8),
                 FilledButton.icon(
-                  onPressed: _busy || toCreate == 0 && p.openingBalance == null ? null : _commit,
+                  onPressed: _busy || blocked || toCreate == 0 && p.openingBalance == null ? null : _commit,
                   icon: const Icon(Icons.done),
-                  label: Text('Import $toCreate'),
+                  label: Text(p.createsAccount ? 'Create account and import $toCreate' : 'Import $toCreate'),
                 ),
               ],
             ),
@@ -446,6 +535,71 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       ),
     );
   }
+
+  Widget _newAccountPanel(ImportPlan p) {
+    final a = p.account;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          StatusLabel(Status.info, 'No account has this statement\'s number yet, so Artha will create one.'),
+          const SizedBox(height: 8),
+          TextFormField(
+            key: ValueKey(a.id),
+            initialValue: a.name,
+            decoration: InputDecoration(
+              labelText: 'New account name',
+              helperText: [subtypeOf(a.subtype).label, a.commodityId, ?a.number].join(' · '),
+            ),
+            onChanged: (v) {
+              if (v.trim().isEmpty) return;
+              _plan =
+                  ImportPlan(
+                      account: a.copyWith(name: v.trim()),
+                      currency: p.currency,
+                      statement: p.statement,
+                      rows: p.rows,
+                      createsAccount: true,
+                    )
+                    ..openingBalance = p.openingBalance
+                    ..openingDate = p.openingDate;
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// What the statement's own figures say about the rows read from it.
+  Widget _checksPanel(ParsedStatement st) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final c in st.checks) StatusLabel(Status.good, c),
+        for (final pr in st.problems) StatusLabel(Status.critical, pr),
+        if (st.problems.isNotEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text(
+              'Artha read rows that do not add up to the statement\'s own figures, so it will not import '
+              'them. Use the bank\'s CSV or OFX download for this account instead.',
+            ),
+          )
+        else if (st.checks.isEmpty)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            value: _confirmed,
+            onChanged: (v) => setState(() => _confirmed = v!),
+            title: const Text(
+              'This statement prints no balances to check against. I have compared the rows.',
+            ),
+          ),
+      ],
+    ),
+  );
 
   Widget _resultCard() {
     final r = _result!;
@@ -459,6 +613,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         actions: [
           FilledButton.tonal(
             onPressed: () => setState(() {
+              _pdf = null;
+              _recognised = null;
+              _confirmed = false;
               _text = null;
               _fileName = null;
               _csv = null;

@@ -38,8 +38,17 @@ class ImportRow {
 }
 
 class ImportPlan {
-  ImportPlan({required this.account, required this.currency, required this.statement, required this.rows});
+  ImportPlan({
+    required this.account,
+    required this.currency,
+    required this.statement,
+    required this.rows,
+    this.createsAccount = false,
+  });
   final Account account;
+
+  /// [account] does not exist yet; committing creates it first.
+  final bool createsAccount;
   final String currency;
   final ParsedStatement statement;
   final List<ImportRow> rows;
@@ -98,18 +107,88 @@ class ImportService {
     );
   }
 
+  /// Open cash accounts the statement names by its account number, sort code
+  /// or card digits, best match first. Empty when it names none of them.
+  Future<List<Account>> matchAccounts(ParsedStatement st) async {
+    final number = _digits(st.accountNumber);
+    if (number.length < 4) return const [];
+    final sort = _digits(st.sortCode);
+    final accounts = await (db.select(
+      db.accounts,
+    )..where((a) => a.deleted.not() & a.closed.not() & a.kind.isIn(['asset', 'liability']))).get();
+    final scored = <(int, Account)>[];
+    for (final a in accounts) {
+      final d = _digits(a.number);
+      if (d.isEmpty) continue;
+      var score = 0;
+      if (number.length >= 8 && d.endsWith(number)) {
+        // A full account number; the sort code, when both have one, must agree.
+        if (sort.isNotEmpty && d.length >= 14 && !d.startsWith(sort)) continue;
+        score = sort.isNotEmpty && d.startsWith(sort) ? 3 : 2;
+      } else if (number.length == 4 && d.endsWith(number) && (a.subtype == 'credit_card') == st.isCard) {
+        score = 1;
+      } else {
+        continue;
+      }
+      if (st.institution != null &&
+          a.institution != null &&
+          a.institution!.toLowerCase() == st.institution!.toLowerCase()) {
+        score += 1;
+      }
+      scored.add((score, a));
+    }
+    scored.sort((x, y) => y.$1.compareTo(x.$1));
+    return [for (final (_, a) in scored) a];
+  }
+
+  static String _digits(String? s) => (s ?? '').replaceAll(RegExp(r'\D'), '');
+
+  /// The account to create for a statement that matches none: named after
+  /// the bank and the last digits, in the statement's currency.
+  Account newAccountFor(ParsedStatement st, String fallbackCurrency) {
+    final last4 = _digits(st.accountNumber);
+    final tail = last4.length >= 4 ? ' ••${last4.substring(last4.length - 4)}' : '';
+    final subtype = subtypeOf(st.isCard ? 'credit_card' : 'current');
+    final number = st.isCard ? last4 : [if (st.sortCode != null) st.sortCode!, ?st.accountNumber].join(' ');
+    return Account(
+      id: newId(),
+      hlc: '',
+      deleted: false,
+      name: '${st.institution ?? (st.isCard ? 'Credit' : 'Bank')} ${st.isCard ? 'card' : 'current'}$tail',
+      kind: subtype.kind.name,
+      subtype: subtype.id,
+      commodityId: st.currency ?? fallbackCurrency,
+      institution: st.institution,
+      number: number.isEmpty ? null : number,
+      notes: 'Created from an imported statement',
+      closed: false,
+      meta: '{}',
+    );
+  }
+
   Future<ImportPlan> plan(String accountId, ParsedStatement st) async {
     final account = await (db.select(db.accounts)..where((a) => a.id.equals(accountId))).getSingle();
-    final commodity = await (db.select(
-      db.commodities,
-    )..where((c) => c.id.equals(account.commodityId))).getSingle();
-    if (commodity.kind != 'currency') {
-      throw StatementFormatException('Statements import into cash accounts, not holdings');
+    return planFor(account, st);
+  }
+
+  /// Plans the import into [account]; with [create] it is a new account
+  /// from [newAccountFor] that commit creates.
+  Future<ImportPlan> planFor(Account account, ParsedStatement st, {bool create = false}) async {
+    final accountId = account.id;
+    final String code;
+    if (create) {
+      code = account.commodityId;
+    } else {
+      final commodity = await (db.select(
+        db.commodities,
+      )..where((c) => c.id.equals(account.commodityId))).getSingle();
+      if (commodity.kind != 'currency') {
+        throw StatementFormatException('Statements import into cash accounts, not holdings');
+      }
+      code = commodity.code;
     }
-    if (st.currency != null && st.currency != commodity.code) {
-      throw StatementFormatException(
-        'Statement is in ${st.currency} but ${account.name} is a ${commodity.code} account',
-      );
+    if (st.currency != null && st.currency != code) {
+      throw StatementFormatException('Statement is in ${st.currency} but ${account.name} is a $code account');
     }
 
     final existing = await db
@@ -195,7 +274,13 @@ class ImportService {
       }
     }
 
-    final plan = ImportPlan(account: account, currency: commodity.code, statement: st, rows: rows);
+    final plan = ImportPlan(
+      account: account,
+      currency: code,
+      statement: st,
+      rows: rows,
+      createsAccount: create,
+    );
     // A brand-new account starts from the statement's brought-forward balance.
     if (st.lines.isNotEmpty && existing.isEmpty) {
       final opening = st.openingBalance ?? (st.closingBalance == null ? null : st.closingBalance! - st.total);
@@ -211,7 +296,22 @@ class ImportService {
   Future<ImportResult> commit(ImportPlan plan) async {
     var created = 0, linked = 0, merged = 0, skipped = 0;
     final acc = plan.account.id;
+    if (plan.statement.problems.isNotEmpty) {
+      throw StatementFormatException('The statement does not add up, so nothing was imported');
+    }
     await db.transaction(() async {
+      if (plan.createsAccount) {
+        final a = plan.account;
+        await ledger.saveAccount(
+          id: a.id,
+          name: a.name,
+          subtype: a.subtype,
+          commodityId: a.commodityId,
+          institution: a.institution,
+          number: a.number,
+          notes: a.notes,
+        );
+      }
       if (plan.openingBalance != null) {
         await ledger.saveEntry(
           EntryInput(
