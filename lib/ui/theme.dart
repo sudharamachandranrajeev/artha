@@ -1,3 +1,4 @@
+import 'package:brahma_core/brahma_core.dart';
 import 'package:flutter/material.dart';
 
 /// The redesign's design tokens and palettes. See docs/ui-design-map.md for
@@ -317,6 +318,7 @@ ThemeData buildArthaTheme(ArthaPalette palette, Brightness brightness) {
     canvasColor: p.canvas,
     dividerColor: p.hairline,
     splashFactory: InkRipple.splashFactory,
+    pageTransitionsTheme: Motion.pageTransitions,
     cardTheme: CardThemeData(
       color: p.surface,
       surfaceTintColor: const Color(0x00000000),
