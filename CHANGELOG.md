@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add motion: pages slide and fade forwards when opened, tabs fade in when switched,
+  page cards fade up in a short stagger, and loading states cross-fade to content.
+  All of it stops when the system asks for reduced motion.
+
 ## 0.2.0-beta.1
 
 - Pair devices from Settings with a QR code or link and a matching verification code.
