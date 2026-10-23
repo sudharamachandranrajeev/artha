@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0-beta.2
 
 - Add motion: pages slide and fade forwards when opened, tabs fade in when switched,
   page cards fade up in a short stagger, and loading states cross-fade to content.
