@@ -33,7 +33,12 @@ enum Cadence {
   final int max;
 
   /// Monthly equivalent of one payment.
-  int perMonth(int amount) => (amount * 365 / days / 12).round();
+  int perMonth(int amount) => switch (this) {
+    monthly => amount,
+    quarterly => (amount / 3).round(),
+    yearly => (amount / 12).round(),
+    weekly => (amount * 365 / 7 / 12).round(),
+  };
 }
 
 class Recurring {

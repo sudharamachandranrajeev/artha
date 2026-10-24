@@ -5,6 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../../ui/theme.dart';
+import '../insights/forecast.dart';
 import '../portfolio/portfolio.dart';
 import '../reports/reports.dart';
 
@@ -214,6 +215,83 @@ class _NetWorthChartState extends State<NetWorthChart> {
 }
 
 /// Income and spending per month side by side; two series, so a legend.
+/// Expected liquid money day by day. Below zero the line turns the warning
+/// colour and a solid zero line shows where the money runs out.
+class ForecastChart extends StatelessWidget {
+  const ForecastChart(this.forecast, this.base, {super.key});
+  final CashForecast forecast;
+  final String base;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = ArthaSkin.of(context);
+    final f = forecast;
+    final ys = [_major(f.opening, base), for (final b in f.balances) _major(b, base)];
+    final lo = math.min(0.0, ys.reduce(math.min)), hi = math.max(0.0, ys.reduce(math.max));
+    final step = _niceStep(hi - lo);
+    final minY = (lo / step).floor() * step;
+    final maxY = math.max((hi / step).ceil() * step, step);
+    final scale = math.pow(10, currencyInfo(base).scale);
+    final short = lo < 0;
+    final line = short ? Status.warning.color : skin.series[0];
+    String day(int i) {
+      final d = i == 0 ? f.today : f.dateAt(i - 1);
+      return '${int.parse(d.substring(8))} ${monthLabel(d.substring(0, 7))}';
+    }
+
+    // Day labels are wider than month ones; keep the last inside the card.
+    return Padding(
+      padding: const EdgeInsets.only(right: 16),
+      child: SizedBox(
+        height: 200,
+        child: LineChart(
+          LineChartData(
+            minY: minY,
+            maxY: maxY,
+            gridData: _grid(skin.track, step),
+            borderData: FlBorderData(show: false),
+            titlesData: _titles(
+              context,
+              skin.faint,
+              left: (v) => money((v * scale).round(), base, compact: true),
+              bottom: day,
+              count: ys.length,
+              step: step,
+            ),
+            extraLinesData: ExtraLinesData(
+              horizontalLines: [
+                if (short)
+                  HorizontalLine(y: 0, color: Status.warning.color.withValues(alpha: 0.6), strokeWidth: 1),
+              ],
+            ),
+            lineTouchData: LineTouchData(
+              touchTooltipData: LineTouchTooltipData(
+                getTooltipItems: (spots) => [
+                  for (final s in spots)
+                    LineTooltipItem(
+                      '${day(s.x.round())}\n${money((s.y * scale).round(), base)}',
+                      const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFFFFFFF)),
+                    ),
+                ],
+              ),
+            ),
+            lineBarsData: [
+              LineChartBarData(
+                spots: [for (var i = 0; i < ys.length; i++) FlSpot(i.toDouble(), ys[i])],
+                color: line,
+                barWidth: 2.5,
+                isStrokeCapRound: true,
+                dotData: const FlDotData(show: false),
+                belowBarData: BarAreaData(show: true, color: line.withValues(alpha: 0.10)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class FlowsChart extends StatelessWidget {
   const FlowsChart(this.flows, this.base, {super.key});
   final List<MonthFlow> flows;

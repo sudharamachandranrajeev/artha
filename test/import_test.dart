@@ -304,6 +304,27 @@ void main() {
       expect((octopus.categoryId, octopus.suggestion!.source), ('cat.fees', 'rule'));
     });
 
+    test('a rule made during an import files the other new rows it catches', () async {
+      final svc = ImportService(ledger);
+      final plan = await svc.plan(
+        bank,
+        ParsedStatement(
+          lines: [
+            StatementLine(date: '2026-10-01', amount: -899, payee: 'NETFLIX.COM'),
+            StatementLine(date: '2026-10-02', amount: -1500, payee: 'SPOTIFY'),
+            StatementLine(date: '2026-11-01', amount: -899, payee: 'NETFLIX.COM LONDON'),
+          ],
+        ),
+      );
+      plan.rows.first.categoryId = 'cat.subscriptions';
+      await ledger.saveRule(pattern: 'netflix', accountId: 'cat.subscriptions');
+      expect(await svc.reapplyRules(plan), 1);
+      expect(
+        [for (final r in plan.rows) r.categoryId],
+        ['cat.subscriptions', uncategorizedId, 'cat.subscriptions'],
+      );
+    });
+
     test('sort uncategorised entries, by direction, and leave the rest alone', () async {
       Future<String> add(String payee, int amount, [String category = uncategorizedId]) => ledger.saveEntry(
         simpleEntry(

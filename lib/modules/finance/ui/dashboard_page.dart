@@ -6,6 +6,7 @@ import '../../../app/providers.dart';
 import '../../../db/database.dart' show Fact;
 import '../../../ui/components.dart';
 import '../../../ui/theme.dart';
+import '../insights/forecast.dart';
 import '../insights/insights.dart' show Metrics, Recurring;
 import 'accounts_page.dart';
 import 'budgets_page.dart';
@@ -263,6 +264,23 @@ class DashboardPage extends ConsumerWidget {
                   SectionHeader('Upcoming bills'),
                   Hint('card.bills', child: _billsCard(context, recurring, ref.watch(todayProvider), cur)),
                 ],
+                if (m != null && (m.liquid != 0 || recurring.isNotEmpty)) ...[
+                  SectionHeader('Next 90 days'),
+                  Hint(
+                    'card.forecast',
+                    child: _forecastCard(
+                      context,
+                      forecastCash(
+                        liquid: m.liquid,
+                        recurring: recurring,
+                        monthlySpend: m.monthlySpend,
+                        today: ref.watch(todayProvider),
+                      ),
+                      recurring.length,
+                      cur,
+                    ),
+                  ),
+                ],
                 SectionHeader('Your stats'),
                 _statsGrid(d, m, cur),
                 SectionHeader('Income and spending'),
@@ -351,15 +369,54 @@ class DashboardPage extends ConsumerWidget {
     );
   }
 
+  /// Expected liquid money over the next 90 days, its lowest point and what
+  /// the projection assumes.
+  Widget _forecastCard(BuildContext context, CashForecast f, int scheduled, String cur) {
+    final low = f.lowest;
+    final caption = TextStyle(fontSize: 12, color: ArthaSkin.of(context).muted);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ForecastChart(f, cur),
+            const SizedBox(height: 12),
+            if (low.balance < 0)
+              StatusLabel(
+                Status.warning,
+                'Runs ${money(-low.balance, cur)} short around ${niceDate(low.date)}',
+              )
+            else
+              StatusLabel(Status.good, 'Lowest ${money(low.balance, cur)} around ${niceDate(low.date)}'),
+            const SizedBox(height: 4),
+            Text(
+              '${money(f.closing, cur)} expected on ${niceDate(f.dateAt(f.days - 1))}',
+              style: const TextStyle(fontWeight: FontWeight.w600).merge(tabular),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'From your current, savings and cash balances: $scheduled recurring '
+              '${scheduled == 1 ? 'item' : 'items'} on schedule and ${money(f.everydayPerMonth, cur)} a '
+              'month of everyday spending. One-off income is left out.',
+              style: caption,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// The next payment of each recurring bill, soonest first.
   Widget _billsCard(BuildContext context, List<Recurring> recurring, String today, String cur) {
     final bills = recurring.where((r) => r.amount < 0).toList()
       ..sort((a, b) => a.nextDate.compareTo(b.nextDate));
     final muted = ArthaSkin.of(context).muted;
     String due(String date) {
+      // daysBetween is unsigned; the order of the dates says which side.
       final d = daysBetween(date, today);
-      return d < 0
-          ? 'Overdue by ${-d} days'
+      return date.compareTo(today) < 0
+          ? 'Overdue by $d ${d == 1 ? 'day' : 'days'}'
           : d == 0
           ? 'Due today'
           : d == 1

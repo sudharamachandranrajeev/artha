@@ -9,12 +9,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/providers.dart';
 import '../../../db/database.dart';
 import '../domain/accounting.dart';
+import '../domain/ledger.dart';
 import '../import/csv_statement.dart';
 import '../import/import_service.dart';
 import '../import/ofx_qif.dart';
 import '../import/pdf_statement.dart';
 import '../import/pdf_text.dart';
 import '../import/statement.dart';
+import '../insights/categorizer.dart';
 import 'accounts_page.dart';
 import 'common.dart';
 import 'rules_page.dart';
@@ -421,6 +423,22 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     );
   }
 
+  /// Saves a rule from [row] (its first meaningful word and chosen category)
+  /// and files the other new rows it catches.
+  Future<void> _ruleFrom(ImportRow row) async {
+    final words = Categorizer.tokenize(row.line.text);
+    final saved = await editRule(
+      context,
+      ref,
+      pattern: words.isEmpty ? row.line.text.trim() : words.first,
+      accountId: row.categoryId == uncategorizedId ? null : row.categoryId,
+    );
+    final plan = _plan;
+    if (!saved || plan == null || !mounted) return;
+    await ImportService(ref.read(sessionProvider).ledger).reapplyRules(plan);
+    if (mounted) setState(() {});
+  }
+
   Widget _reviewCard(List<Account> list) {
     final p = _plan!;
     final cur = p.currency;
@@ -523,25 +541,36 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                   Expanded(
                     flex: 2,
                     child: r.status == RowStatus.fresh
-                        ? Hint(
-                            'import.category',
-                            child: DropdownButton<String>(
-                              value: categories.any((c) => c.id == r.categoryId) ? r.categoryId : null,
-                              isExpanded: true,
-                              underline: const SizedBox.shrink(),
-                              hint: const Text('Category'),
-                              items: [
-                                for (final c in categories)
-                                  DropdownMenuItem(
-                                    value: c.id,
-                                    child: Text(
-                                      '${c.name}${r.suggestion?.categoryId == c.id ? ' ✓' : ''}',
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                        ? Row(
+                            children: [
+                              Expanded(
+                                child: Hint(
+                                  'import.category',
+                                  child: DropdownButton<String>(
+                                    value: categories.any((c) => c.id == r.categoryId) ? r.categoryId : null,
+                                    isExpanded: true,
+                                    underline: const SizedBox.shrink(),
+                                    hint: const Text('Category'),
+                                    items: [
+                                      for (final c in categories)
+                                        DropdownMenuItem(
+                                          value: c.id,
+                                          child: Text(
+                                            '${c.name}${r.suggestion?.categoryId == c.id ? ' ✓' : ''}',
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                    ],
+                                    onChanged: (v) => setState(() => r.categoryId = v!),
                                   ),
-                              ],
-                              onChanged: (v) => setState(() => r.categoryId = v!),
-                            ),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Make a rule for rows like this',
+                                icon: const Icon(Icons.rule_outlined, size: 18),
+                                onPressed: () => _ruleFrom(r),
+                              ),
+                            ],
                           )
                         : r.status == RowStatus.matched || r.status == RowStatus.overlap
                         ? Align(

@@ -225,4 +225,37 @@ void main() {
     expect(tester.takeException(), isNull);
     await app.close();
   });
+
+  testWidgets('the dashboard forecasts the next 90 days from recurring pay and bills', (tester) async {
+    final app = AppHarness(tester)..desktop();
+    await app.open(
+      seed: (ledger) async {
+        await seed(ledger);
+        final bank = await ledger.saveAccount(name: 'Monzo', subtype: 'current', commodityId: 'GBP');
+        for (var k = 4; k >= 1; k--) {
+          for (final (payee, cat, amount) in [
+            ('ACME LTD SALARY', 'cat.salary', -280000),
+            ('RENT LANDLORD', 'cat.housing', 140000),
+          ]) {
+            await ledger.saveEntry(
+              simpleEntry(
+                date: addMonths(today(), -k),
+                currency: 'GBP',
+                accountId: bank,
+                categoryId: cat,
+                amount: amount,
+                payee: payee,
+              ),
+            );
+          }
+        }
+      },
+    );
+    await app.run();
+    expect(find.text('Next 90 days'), findsOneWidget);
+    expect(find.textContaining('2 recurring items on schedule'), findsOneWidget);
+    expect(find.textContaining('expected on'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await app.close();
+  });
 }

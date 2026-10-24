@@ -56,6 +56,8 @@ const arthaHints = <String, String>{
   'settings.fx': 'Fetch European Central Bank reference rates for the currencies you use.',
   'settings.base': 'Totals, charts and reports are shown in this currency.',
   'settings.appearance': 'Pick a colour palette and light or dark. Kept on this device, never synced.',
+  'card.forecast':
+      'Where your spendable money is heading if bills, pay and everyday spending carry on as they have.',
   'card.budgets': 'This month’s spending against the monthly budget you set for each category.',
   'card.bills': 'Payments that repeat on a steady schedule, with the date each is next expected.',
   // Page banners

@@ -113,15 +113,22 @@ class RulesPage extends ConsumerWidget {
   }
 }
 
-/// Adds a rule, or edits [rule]. [pattern] prefills a new one.
-Future<void> editRule(BuildContext context, WidgetRef ref, {Rule? rule, String? pattern}) async {
+/// Adds a rule, or edits [rule]. [pattern] and [accountId] prefill a new one.
+/// True once a rule was saved.
+Future<bool> editRule(
+  BuildContext context,
+  WidgetRef ref, {
+  Rule? rule,
+  String? pattern,
+  String? accountId,
+}) async {
   final categories =
       (ref.read(accountsProvider).value ?? const <Account>[])
           .where((a) => a.isCategory && !a.closed && a.id != uncategorizedId)
           .toList()
         ..sort((a, b) => a.kind == b.kind ? a.name.compareTo(b.name) : a.kind.compareTo(b.kind));
   final text = TextEditingController(text: rule?.pattern ?? pattern ?? '');
-  var category = rule?.accountId;
+  var category = rule?.accountId ?? accountId;
   final form = GlobalKey<FormState>();
   final ok = await showDialog<bool>(
     context: context,
@@ -172,8 +179,8 @@ Future<void> editRule(BuildContext context, WidgetRef ref, {Rule? rule, String? 
       ),
     ),
   );
-  if (ok != true || !context.mounted) return;
-  await guarded(
+  if (ok != true || !context.mounted) return false;
+  return guarded(
     context,
     () => ref.mutate((s) => s.ledger.saveRule(id: rule?.id, pattern: text.text, accountId: category!)),
   );

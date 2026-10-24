@@ -381,6 +381,24 @@ class ImportService {
     return plan;
   }
 
+  /// After a rule is added, files the plan's new rows that a rule now
+  /// catches. Returns how many rows changed category.
+  Future<int> reapplyRules(ImportPlan plan) async {
+    final cat = await categorizer();
+    var changed = 0;
+    for (final r in plan.rows) {
+      if (r.status == RowStatus.duplicate) continue;
+      final s = cat.suggest(r.line.text, r.line.amount);
+      if (s?.source != 'rule') continue;
+      r.suggestion = s;
+      if (r.status == RowStatus.fresh && r.categoryId != s!.categoryId) {
+        r.categoryId = s.categoryId;
+        changed++;
+      }
+    }
+    return changed;
+  }
+
   Future<ImportResult> commit(ImportPlan plan) async {
     var created = 0, linked = 0, merged = 0, skipped = 0;
     final acc = plan.account.id;

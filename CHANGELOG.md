@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0-beta.11
+
+- Cash-flow forecast on the dashboard: spendable money day by day for the next 90 days, from
+  recurring pay and bills on their schedule plus everyday spending spread evenly. It shows the
+  lowest point and warns when money would run short; one-off income is left out, so it errs low.
+- Make a rule from an import row: the rule icon beside a new row's category saves "first word →
+  that category", and the other new rows it catches are filed straight away.
+- Fixes: overdue bills said "Due in N days"; monthly recurring amounts were counted 1.4% high.
+
 ## 0.2.0-beta.10
 
 - Categorisation rules: Import → rules lists text to look for and the category it files into,
