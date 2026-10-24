@@ -41,6 +41,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Linux installer tests
+        run: bash scripts/test-install-linux.sh
       - name: Build tools
         run: |
           sudo apt-get update -qq
@@ -210,6 +212,8 @@ jobs:
           cp -r build/linux/x64/release/bundle/. "$dir/"
           cp branding/artha-512.png "$dir/artha.png"
           cp scripts/install-linux.sh "$dir/install.sh"
+          cp scripts/install-linux.sh dist/install-linux.sh
+          cp docs/quick-start.md "$dir/QUICK-START.md"
           cat > "$dir/README.txt" <<'EOF'
           Artha for Linux (x86-64). Needs GTK 3, libsecret and a running keyring
           (GNOME Keyring or KWallet), which hold the database key.
@@ -313,12 +317,15 @@ jobs:
           if head -c 15 "$db" | grep -q 'SQLite format 3'; then echo "::error::the database is not encrypted"; exit 1; fi
           echo "Artha ran for 20 s and created an encrypted database"
           # The install script, end to end.
-          HOME="$PWD/home" "$app/install.sh"
-          test -x home/.local/lib/artha/artha
-          grep -q 'StartupWMClass=dev.artha.artha' home/.local/share/applications/dev.artha.artha.desktop
-          HOME="$PWD/home" "$app/install.sh" --uninstall
-          test ! -e home/.local/lib/artha
-          test -s "$db"
+          useradd --create-home --user-group --home-dir /tmp/artha-installer-home artha-test
+          install -d -o artha-test -g artha-test /tmp/artha-installer-home/.local/share/dev.artha.artha
+          install -m 600 -o artha-test -g artha-test "$db" /tmp/artha-installer-home/.local/share/dev.artha.artha/artha.sqlite
+          runuser -u artha-test -- "$app/install.sh"
+          test -x /tmp/artha-installer-home/.local/lib/artha/artha
+          grep -q 'StartupWMClass=dev.artha.artha' /tmp/artha-installer-home/.local/share/applications/dev.artha.artha.desktop
+          runuser -u artha-test -- bash /tmp/artha-installer-home/.local/lib/artha/install.sh --uninstall
+          test ! -e /tmp/artha-installer-home/.local/lib/artha
+          cmp "$db" /tmp/artha-installer-home/.local/share/dev.artha.artha/artha.sqlite
 
   publish:
     if: startsWith(github.ref, 'refs/tags/v')

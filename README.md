@@ -17,14 +17,31 @@ On Linux the database key lives in the desktop keyring (libsecret), which must b
 unlocked. If the key is missing while a database exists, Artha stops rather than create a new
 key, so the old database stays recoverable.
 
+## Start here
+
+New to Artha? Follow the [five-minute quick start](docs/quick-start.md).
+Linux users can use the [single-script installer](docs/install-linux.md), including on
+Arch and Omarchy. It downloads a release, checks its checksum, offers to install missing
+desktop libraries, and adds Artha to the app menu.
+
+From this checkout, install the newest published build with:
+
+```sh
+bash scripts/install-linux.sh --download
+```
+
+GitHub CLI (`gh`) must be signed in to an account with access to this private repository.
+Run the installer as your normal user, without `sudo`.
+
 ## Install a test build
 
 Builds are on the [releases page](https://github.com/sudharamachandranrajeev/artha/releases)
 (the repository is private, so sign in first). Each release has `SHA256SUMS.txt`.
 
-- **Linux (x86-64):** unpack `Artha-<version>-linux-x64.tar.gz` and run `./install.sh`. It
+- **Linux (x86-64):** use the [Linux install guide](docs/install-linux.md), or unpack
+  `Artha-<version>-linux-x64.tar.gz` and run `bash install.sh`. It
   installs for your user only (`~/.local/lib/artha`, a menu entry and `artha` on the PATH);
-  `./install.sh --uninstall` removes it. Needs GTK 3, libsecret and a running keyring. From a
+  `bash install.sh --uninstall` removes it. Needs GTK 3, libsecret and a running keyring. From a
   checkout: `flutter build linux --release && scripts/install-linux.sh`.
 - **Windows 10/11:** run `Artha-<version>-windows-x64-setup.exe` (no admin rights needed), or
   unzip the portable build anywhere. Windows SmartScreen warns because the build is not
@@ -65,3 +82,8 @@ push; a `v*` tag builds, smoke-tests and publishes the Android, Windows and Linu
 
 Self-hosted PocketBase with end-to-end encryption: setup, HTTPS, recovery and limits are in
 [server/README.md](server/README.md). For development, run `scripts/run-local-server.sh`.
+
+## Browser version and hosting
+
+Artha currently ships native apps. The [web feasibility and Hetzner assessment](docs/web-and-hosting.md)
+describes what browser support needs and compares hosting options; it is a plan, not a web release.

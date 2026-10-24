@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Add a standalone Linux installer with authenticated release downloads, checksum checks,
+  dependency setup for Ubuntu/Debian, Fedora, Arch and Omarchy, and safe updates and removal.
+- Add beginner installation and quick-start guides, plus a browser feasibility and Hetzner
+  hosting assessment.
+
 ## 0.2.0-beta.6
 
 - Lloyds credit card statements import: the card-ending column, a second "date entered", payments
