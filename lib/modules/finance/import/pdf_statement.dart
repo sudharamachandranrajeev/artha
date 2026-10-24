@@ -48,6 +48,20 @@ const _labels = <_Col, List<String>>{
   _Col.date: ['date'],
 };
 
+// Words that sit in heading rows beside the labels, such as Lloyds' "Card
+// Ending | Date of transaction | Date entered | Description | Amount £".
+const _headingFiller = {
+  'card',
+  'ending',
+  'of',
+  'entered',
+  'posted',
+  'transaction',
+  'reference',
+  'ref',
+  'type',
+};
+
 class _Column {
   _Column(this.kind, this.left, this.right);
   final _Col kind;
@@ -105,7 +119,9 @@ int? _monthOf(String s) {
   if (d != null && words.length > 1) {
     final mon = RegExp(r'^[A-Za-z]{3,9}\.?$').hasMatch(words[1]) ? _monthOf(words[1]) : null;
     if (mon != null) {
-      final y = words.length > 2 ? RegExp(r'^(\d{2}|\d{4})$').firstMatch(words[2]) : null;
+      var y = words.length > 2 ? RegExp(r'^(\d{2}|\d{4})$').firstMatch(words[2]) : null;
+      // "15 JUNE 15 JUNE" is two dates, not a date in 2015.
+      if (y != null && words.length > 3 && _monthOf(words[3]) != null) y = null;
       return (
         day: int.parse(d[1]!),
         month: mon,
@@ -196,7 +212,9 @@ _Summary _summarise(List<PdfLine> lines, Set<PdfLine> rows, int scale) {
         r'(?:card\s*(?:number|ending(?:\s*in)?)[:\s]*)(?:[*xX•\d]{4}[\s-]*){0,3}(\d{4})\b',
         caseSensitive: false,
       ).firstMatch(all) ??
-      RegExp(r'(?:[*xX•]{4}[\s-]*){2,3}(\d{4})\b').firstMatch(all);
+      RegExp(r'(?:[*xX•]{4}[\s-]*){2,3}(\d{4})\b').firstMatch(all) ??
+      // "4670 62** **** 2413": masked groups mixed with digits.
+      RegExp(r'\b(?=[\d\s]*[*xX•])(?:[\d*xX•]{4}[\s-]){3}(\d{4})\b').firstMatch(all);
   if (card != null) s.cardLast4 = card[1];
   if (all.contains('£') || all.contains('GBP')) {
     s.currency = 'GBP';
@@ -217,6 +235,23 @@ _Summary _summarise(List<PdfLine> lines, Set<PdfLine> rows, int scale) {
 
     s.periodStart = iso(period[1]!);
     s.periodEnd = iso(period[2]!);
+  } else {
+    // Card statements print only their date: "Statement date 21 June 2026",
+    // or the date alone under a line about the statement.
+    for (var i = 0; i < lines.length && s.periodEnd == null; i++) {
+      final norm = _norm(lines[i].text);
+      final m = _longDate.firstMatch(lines[i].text);
+      if (m == null) continue;
+      final alone = m.group(0) == lines[i].text.trim();
+      final near = [
+        for (var j = i - 2; j < i; j++)
+          if (j >= 0) _norm(lines[j].text),
+      ];
+      if (norm.contains('statement date') || (alone && near.any((n) => n.contains('statement')))) {
+        final mon = _monthOf(m[2]!);
+        if (mon != null) s.periodEnd = _isoOf(int.parse(m[3]!), mon, int.parse(m[1]!));
+      }
+    }
   }
   // Summary figures: a phrase followed by an amount on the same line.
   for (final l in lines) {
@@ -277,7 +312,11 @@ List<_Column>? _header(PdfLine line) {
   if (!kinds.contains(_Col.date) || money.isEmpty) return null;
   // Most of the heading line should be headings, not a sentence that happens
   // to say "date" and "balance".
-  if (used.length * 2 < words.length) return null;
+  final filler = [
+    for (var i = 0; i < words.length; i++)
+      if (!used.contains(i) && (norms[i].isEmpty || _headingFiller.contains(norms[i]))) i,
+  ];
+  if ((used.length + filler.length) * 2 < words.length) return null;
   return cols..sort((a, b) => a.left.compareTo(b.left));
 }
 
@@ -375,16 +414,26 @@ ParsedStatement parsePdfStatement(List<PdfLine> lines, {int scale = 2}) {
 
     // Words in the date column, then money by column, the rest is text.
     final words = line.words;
+    // Columns left of the date (a card's last digits) are not part of a row.
+    final dateStart = dateCol.left - 8;
     final dateWords = [
       for (final w in words)
-        if (w.left < dateLimit) w.text,
+        if (w.left >= dateStart && w.left < dateLimit) w.text,
     ];
     final date = _dateAt(dateWords);
+    // A second date (when the bank entered it) is not description text.
+    final second = date == null ? null : _dateAt(dateWords.sublist(date.used));
+    final skip = date == null ? 0 : date.used + (second?.used ?? 0);
     final amounts = <_Col, ({int value, bool? credit})>{};
     final text = <String>[];
+    var skipped = 0;
     for (var i = 0; i < words.length; i++) {
       final w = words[i];
-      if (date != null && i < date.used && w.left < dateLimit) continue;
+      if (w.right < dateStart) continue;
+      if (skipped < skip && w.left < dateLimit) {
+        skipped++;
+        continue;
+      }
       var a = w.right > firstMoneyLeft - 30 ? _amount(w.text, scale) : null;
       if (a != null && i + 1 < words.length && _marker.hasMatch(words[i + 1].text)) {
         final mark = words[i + 1].text.toUpperCase();
@@ -409,9 +458,12 @@ ParsedStatement parsePdfStatement(List<PdfLine> lines, {int scale = 2}) {
       throw StatementFormatException('Cannot tell the year of "${dateWords.take(date.used).join(' ')}"');
     }
     final norm = _norm(text.join(' '));
-    final special = _has(norm, _openingWords) || _has(norm, _closingWords) || norm.startsWith('total');
+    // The whole line, as "New balance" can start left of the date column.
+    final whole = _norm(line.text);
+    final closes = _has(whole, _closingWords);
+    final special = _has(whole, _openingWords) || closes || whole.startsWith('total');
     if (amounts.isEmpty) {
-      if (special || text.isEmpty) continue;
+      if (special || norm.isEmpty) continue;
       if (iso != null) flushPending();
       pending.add((line: line, date: iso, text: [text.join(' ')]));
       continue;
@@ -421,6 +473,8 @@ ParsedStatement parsePdfStatement(List<PdfLine> lines, {int scale = 2}) {
       // figures were read in the summary pass.
       flushPending();
       if (iso != null) lastDate = iso;
+      // The table ends at its closing balance; notes below are not rows.
+      if (closes) cols = null;
       continue;
     }
     final row = _Row(line.page, line.top, line.words.first.bottom)..date = iso;
@@ -458,7 +512,18 @@ ParsedStatement parsePdfStatement(List<PdfLine> lines, {int scale = 2}) {
     return b.credit == false ? -b.value : b.value;
   }
 
-  final ordered = rows.length > 1 && rows.first.date!.compareTo(rows.last.date!) > 0
+  // Without a balance column order does not matter to the totals, and some
+  // cards (Lloyds) list payments before purchases, so sort by date, keeping
+  // printed order within a day.
+  final noBalances = rows.every((r) => r.amounts[_Col.balance] == null);
+  final ordered = noBalances
+      ? ([for (var i = 0; i < rows.length; i++) (i, rows[i])]..sort(
+              (a, b) =>
+                  a.$2.date!.compareTo(b.$2.date!) != 0 ? a.$2.date!.compareTo(b.$2.date!) : a.$1 - b.$1,
+            ))
+            .map((e) => e.$2)
+            .toList()
+      : rows.length > 1 && rows.first.date!.compareTo(rows.last.date!) > 0
       ? rows.reversed.toList()
       : rows;
   final out = <StatementLine>[];
@@ -523,8 +588,10 @@ ParsedStatement parsePdfStatement(List<PdfLine> lines, {int scale = 2}) {
   return ParsedStatement(
     lines: out,
     currency: s.currency,
-    accountNumber: s.accountNumber ?? s.cardLast4,
-    sortCode: s.sortCode,
+    // A card statement's sort code and account number are where to send
+    // payments, not the card itself.
+    accountNumber: card && s.cardLast4 != null ? s.cardLast4 : s.accountNumber ?? s.cardLast4,
+    sortCode: card && s.cardLast4 != null ? null : s.sortCode,
     institution: s.institution,
     isCard: card,
     openingBalance: derivedOpening,

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0-beta.6
+
+- Lloyds credit card statements import: the card-ending column, a second "date entered", payments
+  listed before purchases and a statement that prints only its date are all read, and the card is
+  recognised by its last four digits rather than the bank's payment account.
+
 ## 0.2.0-beta.5
 
 - Statements can arrive month by month, in any order, or all at once: choose several PDFs in
