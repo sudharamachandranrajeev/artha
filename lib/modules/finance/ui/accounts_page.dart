@@ -350,6 +350,7 @@ class AccountDetailPage extends ConsumerWidget {
                   ],
                 ),
               ),
+              _StatementTally(account),
               const SizedBox(height: 16),
               if (lines.isEmpty)
                 const EmptyState(icon: Icons.receipt_long_outlined, title: 'No transactions yet')
@@ -398,6 +399,79 @@ class AccountDetailPage extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Statement balances of one account against the ledger, oldest first.
+final accountTallyProvider = FutureProvider.family<List<TallyRow>, String>((ref, id) async {
+  final r = await ref.watch(reportsProvider.future);
+  return r.accountTally(id);
+});
+
+/// Whether the ledger agrees with each statement balance the bank printed. A
+/// difference that starts at one statement and carries on afterwards means
+/// transactions are missing before it, usually a statement not yet imported.
+class _StatementTally extends ConsumerWidget {
+  const _StatementTally(this.account);
+  final Account account;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rows = ref.watch(accountTallyProvider(account.id)).value ?? const <TallyRow>[];
+    // One check per day is enough to see the pattern: keep each statement end.
+    if (rows.length < 2) return const SizedBox.shrink();
+    final first = rows.indexWhere((t) => !t.tallied);
+    String show(int raw) => money(account.natural(raw), account.commodityId, signed: true);
+    final muted = ArthaSkin.of(context).muted;
+    final String summary;
+    if (first < 0) {
+      summary =
+          'The ledger agrees with every statement balance, from ${niceDate(rows.first.date)} to ${niceDate(rows.last.date)}.';
+    } else if (first == 0) {
+      summary =
+          'The ledger is out by ${show(rows.first.difference)} at the first statement balance, on ${niceDate(rows.first.date)}. '
+          'Transactions before that date are missing or duplicated.';
+    } else {
+      summary =
+          'The ledger agreed up to ${niceDate(rows[first - 1].date)} and is out by ${show(rows[first].difference)} on '
+          '${niceDate(rows[first].date)}. Look for a statement or transactions between those dates.';
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              StatusLabel(first < 0 ? Status.good : Status.serious, summary),
+              const SizedBox(height: 12),
+              for (final t in rows.reversed.take(12))
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
+                    children: [
+                      Icon(
+                        t.tallied ? Status.good.icon : Status.serious.icon,
+                        size: 16,
+                        color: t.tallied ? Status.good.color : Status.serious.color,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(niceDate(t.date), style: TextStyle(fontSize: 13, color: muted)),
+                      ),
+                      Text(
+                        t.tallied ? show(t.statement) : '${show(t.statement)} · off by ${show(t.difference)}',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600).merge(tabular),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

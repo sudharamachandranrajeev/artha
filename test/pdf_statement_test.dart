@@ -1,4 +1,5 @@
 import 'package:artha/modules/finance/import/pdf_statement.dart';
+import 'package:artha/modules/finance/reports/reports.dart';
 import 'package:artha/modules/finance/import/pdf_text.dart';
 import 'package:artha/modules/finance/import/statement.dart';
 import 'package:artha/db/database.dart';
@@ -69,6 +70,77 @@ List<List<PdfText>> barclays({String lastBalance = '1,887.51'}) => [
     at(40, 700, 'Barclays Bank UK PLC. Authorised by the Prudential Regulation Authority.'),
   ],
 ];
+
+/// One month of a current account: [rows] are (day, description, pence out
+/// positive or in negative); every row carries the running balance.
+List<List<PdfText>> month({
+  required String from,
+  required String to,
+  required int opening,
+  required List<(String, String, int)> rows,
+  String account = '12345678',
+}) {
+  String m(int v) {
+    final s = (v.abs() / 100).toStringAsFixed(2);
+    final whole = s.split('.')[0].replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',');
+    return '$whole.${s.split('.')[1]}';
+  }
+
+  var bal = opening;
+  var closeIn = 0, closeOut = 0;
+  final body = <PdfText>[];
+  var y = 215.0;
+  for (final (day, text, out) in rows) {
+    bal -= out;
+    out > 0 ? closeOut += out : closeIn -= out;
+    body
+      ..add(at(40, y, day))
+      ..add(at(90, y, text))
+      ..add(right(out > 0 ? 400 : 470, y, m(out)))
+      ..add(right(550, y, '${bal < 0 ? '-' : ''}${m(bal)}'));
+    y += 15;
+  }
+  return [
+    [
+      at(40, 40, 'Barclays Bank UK PLC', size: 12),
+      at(320, 60, 'Sort code 20-12-34 Account number $account'),
+      at(40, 80, 'Your statement $from to $to'),
+      at(40, 110, 'Start balance'),
+      right(250, 110, '£${m(opening)}'),
+      at(40, 122, 'Money in'),
+      right(250, 122, '£${m(closeIn)}'),
+      at(40, 134, 'Money out'),
+      right(250, 134, '£${m(closeOut)}'),
+      at(40, 146, 'End balance'),
+      right(250, 146, '£${m(bal)}'),
+      at(40, 180, 'Date'),
+      at(90, 180, 'Description'),
+      right(400, 180, 'Money out'),
+      right(470, 180, 'Money in'),
+      right(550, 180, 'Balance'),
+      ...body,
+    ],
+  ];
+}
+
+final sep = month(
+  from: '1 September 2026',
+  to: '30 September 2026',
+  opening: 50000,
+  rows: [('2 Sep', 'RENT', 30000), ('9 Sep', 'SALARY', -200000)],
+);
+final oct = month(
+  from: '1 October 2026',
+  to: '31 October 2026',
+  opening: 220000,
+  rows: [('2 Oct', 'RENT', 30000), ('11 Oct', 'TESCO', 4000), ('25 Oct', 'SALARY', -200000)],
+);
+final nov = month(
+  from: '1 November 2026',
+  to: '30 November 2026',
+  opening: 386000,
+  rows: [('2 Nov', 'RENT', 30000), ('14 Nov', 'ASDA', 6000)],
+);
 
 void main() {
   setUpAll(usePdfiumForTests);
@@ -199,43 +271,98 @@ void main() {
   group('importing', () {
     late AppDatabase db;
     late Ledger ledger;
+    late ImportService service;
     setUp(() async {
       db = await openTestDatabase();
       ledger = Ledger(await Store.open(db));
       await ledger.setUp('GBP');
+      service = ImportService(ledger);
     });
     tearDown(() => db.close());
 
+    /// Imports into the account the statement names, creating it when needed.
+    Future<String> import(ParsedStatement st) async {
+      final found = await service.matchAccounts(st);
+      final plan = found.isEmpty
+          ? await service.planFor(service.newAccountFor(st, 'GBP'), st, create: true)
+          : await service.plan(found.first.id, st);
+      await service.commit(plan);
+      return plan.account.id;
+    }
+
+    Future<List<bool>> tally(String id) async {
+      final r = await Reports.load(db, 'GBP');
+      return [for (final t in await r.accountTally(id)) t.tallied];
+    }
+
     test('an unknown statement creates its account; the next one is recognised', () async {
-      final service = ImportService(ledger);
       final st = await parse(barclays());
       expect(await service.matchAccounts(st), isEmpty);
-      final plan = await service.planFor(service.newAccountFor(st, 'GBP'), st, create: true);
-      final result = await service.commit(plan);
-      expect(result.created, 4);
-
-      final account = (await db.select(db.accounts).get()).singleWhere((a) => a.id == plan.account.id);
+      final id = await import(st);
+      final account = (await db.select(db.accounts).get()).singleWhere((a) => a.id == id);
       expect(account.name, 'Barclays current ••5678');
-      expect(account.subtype, 'current');
       expect(account.number, '20-12-34 12345678');
-      expect(account.institution, 'Barclays');
-      // Opening balance plus every row lands on the statement's end balance.
-      expect((await ledger.balances())[account.id]!.amount, 188751);
-
+      expect((await ledger.balances())[id]!.amount, 188751);
       final again = await parse(barclays());
-      final matches = await service.matchAccounts(again);
-      expect(matches.map((a) => a.id), [account.id]);
-      final replan = await service.plan(account.id, again);
+      expect((await service.matchAccounts(again)).map((a) => a.id), [id]);
+      final replan = await service.plan(id, again);
       expect(replan.rows.every((r) => r.status == RowStatus.duplicate), isTrue);
       expect(replan.openingBalance, isNull);
     });
 
     test('a statement that does not add up is never committed', () async {
-      final service = ImportService(ledger);
       final st = await parse(barclays(lastBalance: '1,877.51'));
       final plan = await service.planFor(service.newAccountFor(st, 'GBP'), st, create: true);
       await expectLater(service.commit(plan), throwsA(isA<StatementFormatException>()));
       expect((await db.select(db.accounts).get()).where((a) => a.subtype == 'current'), isEmpty);
+    });
+
+    test('monthly statements imported one by one tally at every statement', () async {
+      final id = await import(await parse(oct));
+      expect(await import(await parse(nov)), id);
+      expect((await ledger.balances())[id]!.amount, 386000 - 36000);
+      expect(await tally(id), [true, true, true]);
+    });
+
+    test('months in any order end up tallying once the gap is filled', () async {
+      final id = await import(await parse(nov));
+      expect(await tally(id), [true, true]);
+      await import(await parse(sep));
+      // September moved the opening balance back; October is still missing.
+      expect((await tally(id)).contains(false), isTrue);
+      await import(await parse(oct));
+      expect(await tally(id), everyElement(isTrue));
+      expect((await ledger.balances())[id]!.amount, 350000);
+    });
+
+    test('a whole period at once: merged, ordered, gaps reported', () async {
+      final all = mergeStatements([await parse(nov), await parse(sep), await parse(oct)]);
+      expect(all.problems, isEmpty);
+      expect(all.warnings, isEmpty);
+      expect(all.lines.first.date.compareTo(all.lines.last.date) < 0, isTrue);
+      expect(all.lines, hasLength(7));
+      expect(all.openingBalance, 50000);
+      expect(all.closingBalance, 350000);
+      expect(all.checks.where((c) => c.contains('opens where the one before closed')), hasLength(2));
+      final id = await import(all);
+      expect(await tally(id), everyElement(isTrue));
+
+      final gap = mergeStatements([await parse(sep), await parse(nov)]);
+      expect(gap.warnings.single, contains('No statement for 1 Oct 2026 to 31 Oct 2026'));
+    });
+
+    test('statements of different accounts are not merged', () async {
+      final other = month(
+        from: '1 October 2026',
+        to: '31 October 2026',
+        opening: 0,
+        rows: [('3 Oct', 'X', 100)],
+        account: '99999999',
+      );
+      expect(
+        () async => mergeStatements([await parse(oct), await parse(other)]),
+        throwsA(isA<StatementFormatException>()),
+      );
     });
   });
 }

@@ -128,7 +128,7 @@ String? _isoOf(int y, int m, int d) {
 
 /// What a PDF statement says about itself, beyond its rows.
 class _Summary {
-  String? institution, sortCode, accountNumber, cardLast4, periodEnd, currency;
+  String? institution, sortCode, accountNumber, cardLast4, periodStart, periodEnd, currency;
   bool isCard = false;
   int? opening, closing, totalIn, totalOut;
 }
@@ -209,9 +209,14 @@ _Summary _summarise(List<PdfLine> lines, Set<PdfLine> rows, int scale) {
     caseSensitive: false,
   ).firstMatch(all);
   if (period != null) {
-    final m = _longDate.firstMatch(period[2]!)!;
-    final mon = _monthOf(m[2]!);
-    if (mon != null) s.periodEnd = _isoOf(int.parse(m[3]!), mon, int.parse(m[1]!));
+    String? iso(String text) {
+      final m = _longDate.firstMatch(text)!;
+      final mon = _monthOf(m[2]!);
+      return mon == null ? null : _isoOf(int.parse(m[3]!), mon, int.parse(m[1]!));
+    }
+
+    s.periodStart = iso(period[1]!);
+    s.periodEnd = iso(period[2]!);
   }
   // Summary figures: a phrase followed by an amount on the same line.
   for (final l in lines) {
@@ -507,6 +512,14 @@ ParsedStatement parsePdfStatement(List<PdfLine> lines, {int scale = 2}) {
     problems.add('${unsignedAt.length} amount(s) have no sign and no balance to settle it');
   }
   final derivedOpening = opening ?? _openingFromBalances(out);
+  final start = s.periodStart != null && s.periodStart!.compareTo(out.first.date) <= 0
+      ? s.periodStart!
+      : out.first.date;
+  final openingDate = addDays(start, -1);
+  final closingDate = s.periodEnd != null && s.periodEnd!.compareTo(out.last.date) >= 0
+      ? s.periodEnd!
+      : out.last.date;
+  final closingBalance = closing ?? out.last.balance;
   return ParsedStatement(
     lines: out,
     currency: s.currency,
@@ -515,13 +528,16 @@ ParsedStatement parsePdfStatement(List<PdfLine> lines, {int scale = 2}) {
     institution: s.institution,
     isCard: card,
     openingBalance: derivedOpening,
-    closingBalance: closing ?? (out.last.balance),
-    closingDate: s.periodEnd != null && s.periodEnd!.compareTo(out.last.date) >= 0
-        ? s.periodEnd
-        : out.last.date,
+    openingDate: openingDate,
+    closingBalance: closingBalance,
+    closingDate: closingDate,
     warnings: warnings,
     checks: checks,
     problems: problems,
+    checkpoints: [
+      if (derivedOpening != null) (date: openingDate, balance: derivedOpening),
+      if (closingBalance != null) (date: closingDate, balance: closingBalance),
+    ],
   );
 }
 
@@ -588,4 +604,72 @@ int? _openingFromBalances(List<StatementLine> lines) {
         : problems.add('Money out adds up to ${m(outs)}, the statement says ${m(totalOut)}');
   }
   return (checks, problems);
+}
+
+/// Several statements of one account as one, oldest first: their rows in
+/// order, every balance they print as a checkpoint, and a check that each
+/// statement opens where the one before it closed. A break means a missing
+/// statement; it is reported, not refused, because each statement's own rows
+/// were already verified.
+ParsedStatement mergeStatements(List<ParsedStatement> statements) {
+  if (statements.length == 1) return statements.single;
+  String key(ParsedStatement s) => [s.sortCode ?? '', s.accountNumber ?? ''].join('/');
+  if (statements.map(key).toSet().length > 1 || statements.any((s) => (s.accountNumber ?? '').isEmpty)) {
+    throw StatementFormatException(
+      'These statements are for different accounts, or one does not show its account number. '
+      'Import one account at a time.',
+    );
+  }
+  final sorted = [...statements]..sort((a, b) => a.lines.first.date.compareTo(b.lines.first.date));
+  final checks = <String>[], problems = <String>[], warnings = <String>[];
+  final cur = sorted.first.currency ?? 'GBP';
+  for (var i = 0; i < sorted.length; i++) {
+    final s = sorted[i];
+    final label =
+        '${niceDate(addDays(s.openingDate ?? s.lines.first.date, 1))} to ${niceDate(s.closingDate!)}';
+    for (final c in s.checks) {
+      checks.add('$label: $c');
+    }
+    for (final p in s.problems) {
+      problems.add('$label: $p');
+    }
+    warnings.addAll(s.warnings);
+    if (i == 0) continue;
+    final prev = sorted[i - 1];
+    if (prev.closingDate!.compareTo(s.openingDate!) > 0) {
+      problems.add(
+        'The statements to ${niceDate(prev.closingDate!)} and from ${niceDate(addDays(s.openingDate!, 1))} overlap',
+      );
+    } else if (prev.closingDate != s.openingDate) {
+      warnings.add(
+        'No statement for ${niceDate(addDays(prev.closingDate!, 1))} to ${niceDate(s.openingDate!)}; '
+        'the account will not tally there until it is imported',
+      );
+    } else if (prev.closingBalance != null && s.openingBalance != null) {
+      prev.closingBalance == s.openingBalance
+          ? checks.add(
+              'Statement for $label opens where the one before closed (${money(s.openingBalance!, cur)})',
+            )
+          : warnings.add(
+              'The statement for $label opens at ${money(s.openingBalance!, cur)}, '
+              'but the one before closed at ${money(prev.closingBalance!, cur)}',
+            );
+    }
+  }
+  return ParsedStatement(
+    lines: [for (final s in sorted) ...s.lines],
+    currency: sorted.first.currency,
+    accountNumber: sorted.first.accountNumber,
+    sortCode: sorted.first.sortCode,
+    institution: sorted.first.institution,
+    isCard: sorted.first.isCard,
+    openingBalance: sorted.first.openingBalance,
+    openingDate: sorted.first.openingDate,
+    closingBalance: sorted.last.closingBalance,
+    closingDate: sorted.last.closingDate,
+    warnings: warnings,
+    checks: checks,
+    problems: problems,
+    checkpoints: [for (final s in sorted) ...s.checkpoints],
+  );
 }
