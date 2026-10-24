@@ -190,4 +190,39 @@ void main() {
     expect(tester.takeException(), isNull);
     await app.close();
   });
+
+  testWidgets('add a rule and sort uncategorised spending with it', (tester) async {
+    final app = AppHarness(tester)..desktop();
+    await app.open(
+      seed: (ledger) async {
+        await seed(ledger);
+        final bank = await ledger.saveAccount(name: 'Monzo', subtype: 'current', commodityId: 'GBP');
+        await ledger.saveEntry(
+          simpleEntry(
+            date: today(),
+            currency: 'GBP',
+            accountId: bank,
+            categoryId: uncategorizedId,
+            amount: 899,
+            payee: 'TESCO STORES 3021',
+          ),
+        );
+      },
+    );
+    await app.run();
+    await app.go('Import');
+    await app.tap(find.byTooltip('Categorisation rules'));
+    expect(find.text('No rules yet'), findsOneWidget);
+    await app.tapText('Add rule');
+    await app.enter('When the description contains', 'tesco');
+    await app.choose('File it under', 'Groceries');
+    await app.tapText('Save');
+    expect(find.text('“tesco”'), findsOneWidget);
+    await app.tap(find.byTooltip('Sort uncategorised entries with these rules'));
+    expect(find.text('Sorted 1 entry into categories'), findsOneWidget);
+    final legs = await tester.runAsync(() => app.ledger.db.select(app.ledger.db.postings).get());
+    expect(legs!.map((p) => p.accountId), contains('cat.groceries'));
+    expect(tester.takeException(), isNull);
+    await app.close();
+  });
 }

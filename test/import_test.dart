@@ -261,4 +261,75 @@ void main() {
       );
     });
   });
+
+  group('categorisation rules', () {
+    late AppDatabase db;
+    late Ledger ledger;
+    late String bank;
+
+    setUp(() async {
+      db = await openTestDatabase();
+      ledger = Ledger(await Store.open(db));
+      await ledger.seedDefaults('GBP');
+      bank = await ledger.saveAccount(name: 'Nationwide', subtype: 'current', commodityId: 'GBP');
+    });
+    tearDown(() => db.close());
+
+    test('are validated, kept in order and moved', () async {
+      expect(
+        () => ledger.saveRule(pattern: ' x ', accountId: 'cat.groceries'),
+        throwsA(isA<LedgerException>()),
+      );
+      expect(() => ledger.saveRule(pattern: 'tesco', accountId: bank), throwsA(isA<LedgerException>()));
+      expect(
+        () => ledger.saveRule(pattern: 'tesco', accountId: uncategorizedId),
+        throwsA(isA<LedgerException>()),
+      );
+      final a = await ledger.saveRule(pattern: ' TESCO ', accountId: 'cat.groceries');
+      final b = await ledger.saveRule(pattern: 'TFL', accountId: 'cat.transport');
+      expect(() => ledger.saveRule(pattern: 'tesco', accountId: 'cat.fees'), throwsA(isA<LedgerException>()));
+      expect([for (final r in await ledger.rules()) r.pattern], ['TESCO', 'TFL']);
+      await ledger.moveRule(b, -1);
+      expect([for (final r in await ledger.rules()) r.id], [b, a]);
+      await ledger.saveRule(id: a, pattern: 'Tesco Stores', accountId: 'cat.groceries');
+      expect([for (final r in await ledger.rules()) r.pattern], ['TFL', 'Tesco Stores']);
+      await ledger.deleteRule(b);
+      expect((await ledger.rules()).single.id, a);
+    });
+
+    test('decide import categories before history', () async {
+      await ledger.saveRule(pattern: 'octopus', accountId: 'cat.fees');
+      final plan = await ImportService(ledger).plan(bank, csv('nationwide.csv'));
+      final octopus = plan.rows.firstWhere((r) => r.line.text.contains('OCTOPUS'));
+      expect((octopus.categoryId, octopus.suggestion!.source), ('cat.fees', 'rule'));
+    });
+
+    test('sort uncategorised entries, by direction, and leave the rest alone', () async {
+      Future<String> add(String payee, int amount, [String category = uncategorizedId]) => ledger.saveEntry(
+        simpleEntry(
+          date: '2026-10-04',
+          currency: 'GBP',
+          accountId: bank,
+          categoryId: category,
+          amount: amount,
+          payee: payee,
+        ),
+      );
+      final spend = await add('TESCO STORES 3021', 1950);
+      final refund = await add('TESCO REFUND', -500); // money in: a spending rule does not catch it
+      final chosen = await add('TESCO EXPRESS', 300, 'cat.eating_out');
+      final other = await add('CORNER SHOP', 200);
+      await ledger.saveRule(pattern: 'tesco', accountId: 'cat.groceries');
+      expect(await ledger.applyRules(), 1);
+      Future<Set<String>> legs(String id) async => {
+        for (final p in await (db.select(db.postings)..where((p) => p.entryId.equals(id))).get()) p.accountId,
+      };
+      expect(await legs(spend), {bank, 'cat.groceries'});
+      expect(await legs(refund), {bank, uncategorizedId});
+      expect(await legs(chosen), {bank, 'cat.eating_out'});
+      expect(await legs(other), {bank, uncategorizedId});
+      expect((await ledger.balances())[bank]!.amount, -1950 + 500 - 300 - 200);
+      expect(await ledger.applyRules(), 0);
+    });
+  });
 }

@@ -253,3 +253,9 @@ final budgetsProvider = FutureProvider<List<BudgetLine>>((ref) async {
     return x.budget > 0 ? y.used.compareTo(x.used) : y.spent.compareTo(x.spent);
   });
 });
+
+/// Categorisation rules in the order they are tried.
+final rulesProvider = FutureProvider<List<Rule>>((ref) {
+  ref.watch(revisionProvider);
+  return ref.watch(sessionProvider).ledger.rules();
+});

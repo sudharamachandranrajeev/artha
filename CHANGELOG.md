@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0-beta.10
+
+- Categorisation rules: Import → rules lists text to look for and the category it files into,
+  tried top to bottom before learned history. Add, edit, reorder and delete them, and sort
+  every uncategorised entry that matches in one go. Spending rules only catch money out and
+  income rules only money in.
+
 ## 0.2.0-beta.9
 
 - Overlapping imports no longer double-count: a statement row that matches an entry already

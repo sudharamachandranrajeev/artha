@@ -17,6 +17,7 @@ import '../import/pdf_text.dart';
 import '../import/statement.dart';
 import 'accounts_page.dart';
 import 'common.dart';
+import 'rules_page.dart';
 
 /// Larger files are almost certainly not a bank statement.
 const _maxBytes = 20 * 1024 * 1024;
@@ -231,6 +232,13 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     return PageScaffold(
       title: 'Import statement',
       banner: 'page.import',
+      actions: [
+        IconButton(
+          tooltip: 'Categorisation rules',
+          icon: const Icon(Icons.rule_outlined),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RulesPage())),
+        ),
+      ],
       children: [
         SectionCard(
           title: '1 · Account and file',

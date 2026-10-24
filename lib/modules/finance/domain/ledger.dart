@@ -4,6 +4,7 @@ import 'package:brahma_core/brahma_core.dart';
 import 'package:drift/drift.dart';
 
 import '../../../db/database.dart';
+import '../insights/categorizer.dart';
 import 'accounting.dart';
 
 /// Default categories. Fixed ids and the seed HLC make every device create
@@ -413,5 +414,132 @@ class Ledger {
       BudgetsCompanion.insert(id: id, accountId: accountId, amount: amount, deleted: Value(amount == 0)),
       id,
     );
+  });
+
+  /// Categorisation rules in the order they are tried; the first match wins.
+  Future<List<Rule>> rules() =>
+      (db.select(db.rules)
+            ..where((r) => r.deleted.not())
+            ..orderBy([(r) => OrderingTerm(expression: r.position), (r) => OrderingTerm(expression: r.id)]))
+          .get();
+
+  /// Adds a rule at the end of the list, or changes rule [id]: payee or memo
+  /// text containing [pattern] (any case) goes to category [accountId].
+  Future<String> saveRule({String? id, required String pattern, required String accountId}) => db.transaction(
+    () async {
+      final p = pattern.trim();
+      if (p.length < 2) throw LedgerException('A rule needs at least two characters to look for');
+      final account = await (db.select(db.accounts)..where((a) => a.id.equals(accountId))).getSingleOrNull();
+      if (account == null ||
+          account.deleted ||
+          accountId == uncategorizedId ||
+          !(account.kind == AccountKind.income.name || account.kind == AccountKind.expense.name)) {
+        throw LedgerException('Rules sort into income or spending categories only');
+      }
+      final existing = id == null
+          ? null
+          : await (db.select(db.rules)..where((r) => r.id.equals(id) & r.deleted.not())).getSingleOrNull();
+      if (id != null && existing == null) throw LedgerException('That rule no longer exists');
+      final all = await rules();
+      if (all.any((r) => r.id != id && r.pattern.toLowerCase() == p.toLowerCase())) {
+        throw LedgerException('A rule already looks for “$p”');
+      }
+      final ruleId = id ?? 'rule.${newId()}';
+      await store.save(
+        db.rules,
+        RulesCompanion.insert(
+          id: ruleId,
+          field: 'text',
+          pattern: p,
+          accountId: accountId,
+          position: Value(existing?.position ?? (all.isEmpty ? 0 : all.last.position + 1)),
+          deleted: const Value(false),
+        ),
+        ruleId,
+      );
+      return ruleId;
+    },
+  );
+
+  Future<void> deleteRule(String id) => store.remove(db.rules, id);
+
+  /// Moves rule [id] one place earlier ([by] -1) or later ([by] 1).
+  Future<void> moveRule(String id, int by) => db.transaction(() async {
+    final all = await rules();
+    final i = all.indexWhere((r) => r.id == id);
+    final j = i + by;
+    if (i < 0 || j < 0 || j >= all.length) return;
+    final order = [...all];
+    order.insert(j, order.removeAt(i));
+    // Renumber so equal positions from other devices cannot tie.
+    for (var k = 0; k < order.length; k++) {
+      if (order[k].position != k) {
+        await store.save(db.rules, order[k].copyWith(position: k), order[k].id);
+      }
+    }
+  });
+
+  /// Files every uncategorised two-line entry whose text matches a rule into
+  /// that rule's category. Returns how many entries changed.
+  Future<int> applyRules() => db.transaction(() async {
+    final list = await rules();
+    if (list.isEmpty) return 0;
+    final kinds = {for (final a in await db.select(db.accounts).get()) a.id: a.kind};
+    final cat = Categorizer(
+      rules: [for (final r in list) CategoryRule(r.pattern, r.accountId)],
+      history: const [],
+      directionOf: (id) => switch (kinds[id]) {
+        'expense' => 'out',
+        'income' => 'in',
+        _ => 'any',
+      },
+    );
+    final candidates = await db
+        .customSelect(
+          'SELECT e.id FROM entries e WHERE e.deleted = 0 '
+          "AND EXISTS (SELECT 1 FROM postings u WHERE u.entry_id = e.id AND u.account_id = '$uncategorizedId') "
+          'AND (SELECT COUNT(*) FROM postings q WHERE q.entry_id = e.id) = 2',
+          readsFrom: {db.entries, db.postings},
+        )
+        .get();
+    var changed = 0;
+    for (final row in candidates) {
+      final id = row.read<String>('id');
+      final e = await (db.select(db.entries)..where((x) => x.id.equals(id))).getSingle();
+      final postings =
+          await (db.select(db.postings)
+                ..where((p) => p.entryId.equals(id))
+                ..orderBy([(p) => OrderingTerm(expression: p.position)]))
+              .get();
+      final own = postings.where((p) => p.accountId != uncategorizedId).singleOrNull;
+      // Only money moving through one of the user's accounts.
+      if (own == null || !(kinds[own.accountId] == 'asset' || kinds[own.accountId] == 'liability')) continue;
+      final text = [e.payee, e.memo].where((s) => s.isNotEmpty).join(' · ');
+      final s = cat.suggest(text, own.value);
+      if (s == null) continue;
+      await saveEntry(
+        EntryInput(
+          id: e.id,
+          date: e.date,
+          currency: e.currency,
+          payee: e.payee,
+          memo: e.memo,
+          status: e.status,
+          tags: (jsonDecode(e.tags) as List).cast<String>(),
+          importRef: e.importRef,
+          postings: [
+            for (final p in postings)
+              PostingInput(
+                p.accountId == uncategorizedId ? s.categoryId : p.accountId,
+                p.amount,
+                p.value,
+                memo: p.memo,
+              ),
+          ],
+        ),
+      );
+      changed++;
+    }
+    return changed;
   });
 }

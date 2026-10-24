@@ -85,4 +85,7 @@ const arthaHints = <String, String>{
   'page.budgets':
       'Give a category a monthly limit and Artha tracks this month’s spending against it, in your '
       'base currency. Insights warn when one goes over.',
+  'page.rules':
+      'Imports try these rules first, top to bottom: the first whose text appears in a description '
+      'picks the category. Spending categories catch money out, income categories money in.',
 };
