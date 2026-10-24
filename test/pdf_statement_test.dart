@@ -259,6 +259,68 @@ void main() {
     expect(st.verified, isTrue, reason: st.problems.join('\n'));
   });
 
+  test('reads a Lloyds-style card statement: card column, two dates, payments first', () async {
+    final st = await parse([
+      [
+        at(40, 40, 'Lloyds Bank Credit Card', size: 12),
+        at(40, 60, 'Visa number 4670 62** **** 2413'),
+        at(40, 72, 'Your credit limit £1,000'),
+        at(40, 84, 'Your credit card statement'),
+        at(40, 96, '21 June 2026'),
+        at(40, 108, 'Minimum payment due £5.00'),
+        at(40, 120, 'To reach your account by 16 July 2026'),
+        at(40, 140, 'Bank Sort Code no: 77-29-00 Bank Account no: 00000000'),
+      ],
+      [
+        at(42, 160, 'Card Ending'),
+        at(96, 160, 'Date of transaction'),
+        at(186, 160, 'Date entered'),
+        at(252, 160, 'Description'),
+        at(508, 160, 'Amount £'),
+        at(252, 175, 'BALANCE FROM PREVIOUS STATEMENT'),
+        right(544, 175, '183.28'),
+        at(97, 190, '15 JUNE'),
+        at(187, 190, '15 JUNE'),
+        at(252, 190, 'DIRECT DEBIT PAYMENT THANK YOU'),
+        right(544, 190, '183.28'),
+        at(547, 190, 'CR'),
+        at(341, 196, '-'),
+        at(42, 205, '2413'),
+        at(96, 205, '26 MAY'),
+        at(186, 205, '26 MAY'),
+        at(252, 205, 'Amazon.co.uk'),
+        right(544, 205, '16.00'),
+        at(42, 220, '2413'),
+        at(96, 220, '09 JUNE'),
+        at(186, 220, '10 JUNE'),
+        at(252, 220, 'Proton Geneva CH'),
+        right(544, 220, '10.39'),
+        at(43, 240, 'New balance'),
+        right(545, 240, '£26.39'),
+        at(40, 260, 'If you do not pay off the full amount outstanding, we will allocate your payment'),
+        at(40, 272, 'Purchases (Standard) 16.3640 17.65 26.39 0.00 N/A'),
+      ],
+    ]);
+    expect(st.isCard, isTrue);
+    expect(st.institution, 'Lloyds');
+    // The sort code and account number are Lloyds' own, for payments.
+    expect(st.accountNumber, '2413');
+    expect(st.sortCode, isNull);
+    expect(
+      [for (final l in st.lines) (l.date, l.amount, l.payee)],
+      [
+        ('2026-05-26', -1600, 'Amazon.co.uk'),
+        ('2026-06-09', -1039, 'Proton Geneva CH'),
+        ('2026-06-15', 18328, 'DIRECT DEBIT PAYMENT THANK YOU'),
+      ],
+    );
+    expect(st.openingDate, '2026-05-25');
+    expect(st.closingDate, '2026-06-21');
+    expect(st.openingBalance, -18328);
+    expect(st.closingBalance, -2639);
+    expect(st.verified, isTrue, reason: st.problems.join('\n'));
+  });
+
   test('a PDF without a transaction table is refused', () async {
     expect(
       () async => parse([
