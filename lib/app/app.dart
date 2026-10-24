@@ -27,15 +27,30 @@ class ArthaApp extends ConsumerWidget {
   }
 }
 
-/// Onboarding until a base currency exists, then the app. Also opens the
-/// links the platform hands over (a scanned pairing code).
-class _Root extends ConsumerWidget {
+/// The theme for the chosen palette.
+ThemeData arthaTheme(WidgetRef ref, Brightness brightness) =>
+    buildArthaTheme(paletteOf(ref.watch(appearanceProvider).value ?? Appearance.fallback), brightness);
+
+/// The daily exchange-rate refresh.
+void startRateRefresh(WidgetRef ref) => Future.microtask(() => ref.read(fxAutoProvider.future)).ignore();
+
+/// Opens the links the platform hands over (a scanned pairing code).
+class _Root extends StatelessWidget {
   const _Root();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => LinkHandler(child: _home(ref));
+  Widget build(BuildContext context) => const LinkHandler(child: ArthaHome());
+}
 
-  Widget _home(WidgetRef ref) {
+/// Onboarding until a base currency exists, then the app. [onHome] leads
+/// back to the Brahma suite's home screen when the suite hosts Artha (which
+/// starts the rate refresh itself).
+class ArthaHome extends ConsumerWidget {
+  const ArthaHome({super.key, this.onHome});
+  final VoidCallback? onHome;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final setup = ref.watch(setupProvider);
     // Keep the current screen while the provider reloads after each write.
     if (setup.hasValue) {
@@ -43,8 +58,8 @@ class _Root extends ConsumerWidget {
           ? const OnboardingPage()
           : AppShell(
               destinations: allDestinations,
-              // The daily exchange-rate refresh.
-              onStart: (ref) => Future.microtask(() => ref.read(fxAutoProvider.future)).ignore(),
+              onStart: onHome == null ? startRateRefresh : null,
+              onHome: onHome,
             );
     }
     if (setup.hasError) {
