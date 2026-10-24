@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0-beta.8
+## 0.2.0-beta.9
 
 - Overlapping imports no longer double-count: a statement row that matches an entry already
   imported from another file (a CSV export and the PDF for the same month, say) is linked to it
