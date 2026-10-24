@@ -327,7 +327,8 @@ jobs:
           grep -q 'StartupWMClass=dev.artha.artha' /tmp/artha-installer-home/.local/share/applications/dev.artha.artha.desktop
           runuser -u artha-test -- bash /tmp/artha-installer-home/.local/lib/artha/install.sh --uninstall
           test ! -e /tmp/artha-installer-home/.local/lib/artha
-          cmp "$db" /tmp/artha-installer-home/.local/share/dev.artha.artha/artha.sqlite
+          # cmp (diffutils) is missing from the Fedora and Arch images; sha256sum is in coreutils.
+          [[ $(sha256sum <"$db") == $(sha256sum </tmp/artha-installer-home/.local/share/dev.artha.artha/artha.sqlite) ]]
 
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
