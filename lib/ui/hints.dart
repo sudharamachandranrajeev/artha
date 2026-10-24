@@ -35,8 +35,9 @@ const arthaHints = <String, String>{
   'tx.split': 'Entries with more than two lines, and trades, open read-only.',
   // Import
   'import.pick': 'Choose a statement file. Nothing leaves this device.',
-  'import.status': 'New rows are added; duplicates are skipped; matches link to entries you typed; transfers merge with the other account.',
+  'import.status': 'New rows are added; duplicates are skipped; matches link to entries you typed or imported from another file; transfers merge with the other account.',
   'import.category': 'Suggested from your rules and past choices. Change it and Artha learns.',
+  'import.separate': 'Not the same payment? Add this row as a new entry instead of linking it.',
   // Portfolio
   'portfolio.profile': 'Pick how much ups and downs you can live with. It sets the target mix.',
   'portfolio.drift': 'How far each asset class is from its target. Flags use the 5/25 rule.',

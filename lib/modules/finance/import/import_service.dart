@@ -19,6 +19,10 @@ enum RowStatus {
   /// Same as an entry typed in by hand; that entry gets linked, not copied.
   matched,
 
+  /// Same as an entry imported from another file covering the same days (a
+  /// CSV export and the PDF statement, say); that entry gets linked, not copied.
+  overlap,
+
   /// Other side of a transfer already imported from another account; the two
   /// are merged into one transfer instead of counting the money twice.
   transfer,
@@ -35,6 +39,20 @@ class ImportRow {
   Suggestion? suggestion;
   String? existingEntryId;
   bool include = true;
+
+  /// The user says a matched or overlapping row is a different transaction:
+  /// it is created as a new entry instead of being linked.
+  void keepSeparate() {
+    status = RowStatus.fresh;
+    existingEntryId = null;
+    include = true;
+    final s = suggestion;
+    categoryId = s != null && s.confidence >= 0.5
+        ? s.categoryId
+        : line.amount > 0
+        ? otherIncomeId
+        : uncategorizedId;
+  }
 }
 
 class ImportPlan {
@@ -203,13 +221,45 @@ class ImportService {
           variables: [Variable(accountId)],
         )
         .get();
+    final refs = lineRefs(st.lines);
+    final ownTokens = {for (final r in refs) '$accountId/$r'};
     final tokens = <String>{};
     final unlinked = <({String id, String date, int amount})>[];
+    final imported = <({String id, String date, int amount})>[];
     for (final r in existing) {
-      final refs = (r.readNullable<String>('import_ref') ?? '').split(' ');
-      tokens.addAll(refs);
-      if (!refs.any((t) => t.startsWith('$accountId/'))) {
-        unlinked.add((id: r.read<String>('id'), date: r.read<String>('date'), amount: r.read<int>('amount')));
+      final entryRefs = (r.readNullable<String>('import_ref') ?? '').split(' ');
+      tokens.addAll(entryRefs);
+      final e = (id: r.read<String>('id'), date: r.read<String>('date'), amount: r.read<int>('amount'));
+      if (!entryRefs.any((t) => t.startsWith('$accountId/'))) {
+        unlinked.add(e);
+      } else if (e.id != '$accountId-opening' && !entryRefs.any(ownTokens.contains)) {
+        imported.add(e);
+      }
+    }
+
+    // Rows that another file already brought in: same amount, on a day this
+    // statement covers, the same day first and then up to three days apart
+    // (exports and statements can date a payment differently).
+    final overlap = <int, String>{};
+    final used = <String>{};
+    if (st.lines.isNotEmpty) {
+      final first = st.lines.map((l) => l.date).reduce((a, b) => a.compareTo(b) <= 0 ? a : b);
+      final last = st.lines.map((l) => l.date).reduce((a, b) => a.compareTo(b) >= 0 ? a : b);
+      final inPeriod = imported.where((e) => e.date.compareTo(first) >= 0 && e.date.compareTo(last) <= 0);
+      for (final slack in [0, 3]) {
+        for (var i = 0; i < st.lines.length; i++) {
+          final line = st.lines[i];
+          if (overlap.containsKey(i) || tokens.contains('$accountId/${refs[i]}')) continue;
+          final hits = inPeriod.where(
+            (e) => !used.contains(e.id) && e.amount == line.amount && daysBetween(e.date, line.date) <= slack,
+          );
+          if (hits.isEmpty) continue;
+          final best = hits.reduce(
+            (a, b) => daysBetween(a.date, line.date) <= daysBetween(b.date, line.date) ? a : b,
+          );
+          used.add(best.id);
+          overlap[i] = best.id;
+        }
       }
     }
 
@@ -232,8 +282,6 @@ class ImportService {
     ];
 
     final cat = await categorizer();
-    final refs = lineRefs(st.lines);
-    final used = <String>{};
     final rows = <ImportRow>[];
     for (var i = 0; i < st.lines.length; i++) {
       final line = st.lines[i];
@@ -243,6 +291,14 @@ class ImportService {
         row
           ..status = RowStatus.duplicate
           ..include = false;
+        continue;
+      }
+      // Kept so that "keep separate" can still offer a category.
+      row.suggestion = cat.suggest(line.text, line.amount);
+      if (overlap[i] case final id?) {
+        row
+          ..status = RowStatus.overlap
+          ..existingEntryId = id;
         continue;
       }
       final manual = unlinked
@@ -269,8 +325,7 @@ class ImportService {
           ..existingEntryId = other.id;
         continue;
       }
-      final s = cat.suggest(line.text, line.amount);
-      row.suggestion = s;
+      final s = row.suggestion;
       if (s != null && s.confidence >= 0.5) {
         row.categoryId = s.categoryId;
       } else if (line.amount > 0) {
@@ -385,7 +440,7 @@ class ImportService {
               ),
             );
             created++;
-          case RowStatus.matched:
+          case RowStatus.matched || RowStatus.overlap:
             await _addToken(row.existingEntryId!, row.token, null);
             linked++;
           case RowStatus.transfer:

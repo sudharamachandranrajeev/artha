@@ -419,7 +419,11 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     final categories = list.where((a) => a.isCategory && !a.closed).toList()
       ..sort((a, b) => a.kind == b.kind ? a.name.compareTo(b.name) : b.kind.compareTo(a.kind));
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
-    final toCreate = p.count(RowStatus.fresh) + p.count(RowStatus.matched) + p.count(RowStatus.transfer);
+    final toCreate =
+        p.count(RowStatus.fresh) +
+        p.count(RowStatus.matched) +
+        p.count(RowStatus.overlap) +
+        p.count(RowStatus.transfer);
     final isPdf = _pdf != null;
     // A PDF imports only when its own figures agree with the rows read, or,
     // when it prints none, once the user has checked it.
@@ -428,6 +432,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       RowStatus.fresh => (Status.info, 'New'),
       RowStatus.duplicate => (Status.warning, 'Already imported'),
       RowStatus.matched => (Status.good, 'Matches an entry'),
+      RowStatus.overlap => (Status.good, 'Already imported from another file'),
       RowStatus.transfer => (Status.good, 'Other side of a transfer'),
     };
     return SectionCard(
@@ -452,6 +457,8 @@ class _ImportPageState extends ConsumerState<ImportPage> {
               children: [
                 Chip(label: Text('${p.count(RowStatus.fresh)} new')),
                 Chip(label: Text('${p.count(RowStatus.matched)} matched')),
+                if (p.rows.any((r) => r.status == RowStatus.overlap))
+                  Chip(label: Text('${p.count(RowStatus.overlap)} from another file')),
                 Chip(label: Text('${p.count(RowStatus.transfer)} transfers')),
                 Chip(
                   label: Text('${p.rows.where((r) => r.status == RowStatus.duplicate).length} duplicates'),
@@ -526,6 +533,17 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                   ),
                               ],
                               onChanged: (v) => setState(() => r.categoryId = v!),
+                            ),
+                          )
+                        : r.status == RowStatus.matched || r.status == RowStatus.overlap
+                        ? Align(
+                            alignment: Alignment.centerLeft,
+                            child: Hint(
+                              'import.separate',
+                              child: TextButton(
+                                onPressed: () => setState(r.keepSeparate),
+                                child: const Text('Keep separate'),
+                              ),
                             ),
                           )
                         : Text('—', style: TextStyle(color: muted)),

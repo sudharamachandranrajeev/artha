@@ -160,6 +160,56 @@ void main() {
       expect((r.created, r.linked), (2, 1));
     });
 
+    test('a second file covering the same days links instead of duplicating', () async {
+      await svc.commit(await svc.plan(bank, csv('nationwide.csv')));
+      final before = (await ledger.balances())[bank]!.amount;
+      final count = (await db.select(db.entries).get()).length;
+      final csvRows = csv('nationwide.csv').lines;
+      // The same payments as the PDF prints them: other wording, one dated a day later.
+      final pdf = ParsedStatement(
+        lines: [
+          for (final (i, l) in csvRows.indexed)
+            StatementLine(
+              date: i == 1 ? addDays(l.date, 1) : l.date,
+              amount: l.amount,
+              payee: 'PDF ${l.payee}',
+            ),
+        ],
+      );
+      final plan = await svc.plan(bank, pdf);
+      expect(plan.rows.every((r) => r.status == RowStatus.overlap), isTrue);
+      expect(plan.openingBalance, isNull);
+      expect((await svc.commit(plan)).linked, csvRows.length);
+      expect((await ledger.balances())[bank]!.amount, before);
+      expect((await db.select(db.entries).get()).length, count);
+      // Now linked, the PDF re-imports as plain duplicates.
+      final again = await svc.plan(bank, pdf);
+      expect(again.rows.every((r) => r.status == RowStatus.duplicate), isTrue);
+    });
+
+    test('overlap prefers the same day and leaves days outside the statement alone', () async {
+      StatementLine coffee(String date) => StatementLine(date: date, amount: -300, payee: 'COFFEE');
+      await svc.commit(
+        await svc.plan(bank, ParsedStatement(lines: [coffee('2026-10-02'), coffee('2026-10-05')])),
+      );
+      final plan = await svc.plan(
+        bank,
+        ParsedStatement(
+          lines: [
+            StatementLine(date: '2026-10-04', amount: -300, payee: 'Coffee shop'),
+            StatementLine(date: '2026-10-05', amount: -300, payee: 'Coffee shop'),
+            StatementLine(date: '2026-10-06', amount: -300, payee: 'Coffee shop'),
+          ],
+        ),
+      );
+      // 10-02 is before this statement starts, so only 10-05 overlaps, on its own day.
+      expect([for (final r in plan.rows) r.status], [RowStatus.fresh, RowStatus.overlap, RowStatus.fresh]);
+      plan.rows[1].keepSeparate();
+      expect((plan.rows[1].status, plan.rows[1].existingEntryId), (RowStatus.fresh, null));
+      final r = await svc.commit(plan);
+      expect((r.created, r.linked), (3, 0));
+    });
+
     test('both sides of a transfer merge into one entry', () async {
       final savings = await ledger.saveAccount(name: 'Savings', subtype: 'savings', commodityId: 'GBP');
       await svc.commit(

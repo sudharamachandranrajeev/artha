@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.2.0-beta.7
 
+- Overlapping imports no longer double-count: a statement row that matches an entry already
+  imported from another file (a CSV export and the PDF for the same month, say) is linked to it
+  instead of copied, matching the same day first and then up to three days apart. "Keep
+  separate" on a matched row adds it as a new entry instead.
 - Add a standalone Linux installer with authenticated release downloads, checksum checks,
   dependency setup for Ubuntu/Debian, Fedora, Arch and Omarchy, and safe updates and removal.
 - Add beginner installation and quick-start guides, plus a browser feasibility and Hetzner
