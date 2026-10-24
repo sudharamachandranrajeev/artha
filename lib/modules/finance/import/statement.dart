@@ -32,6 +32,9 @@ class StatementLine {
   String get text => [payee, memo].where((s) => s.isNotEmpty).join(' · ');
 }
 
+/// A balance the bank printed: the account held [balance] at the end of [date].
+typedef BalancePoint = ({String date, int balance});
+
 class ParsedStatement {
   ParsedStatement({
     required this.lines,
@@ -41,11 +44,13 @@ class ParsedStatement {
     this.institution,
     this.isCard = false,
     this.openingBalance,
+    this.openingDate,
     this.closingBalance,
     this.closingDate,
     this.warnings = const [],
     this.checks = const [],
     this.problems = const [],
+    this.checkpoints = const [],
   });
 
   /// Oldest first.
@@ -65,6 +70,9 @@ class ParsedStatement {
   /// Balance before the first line, when derivable.
   final int? openingBalance;
 
+  /// The day [openingBalance] stands at (the day before the period starts).
+  final String? openingDate;
+
   /// Balance at the end of [closingDate], when the statement states it.
   final int? closingBalance;
   final String? closingDate;
@@ -74,6 +82,10 @@ class ParsedStatement {
   /// Only formats that print balances or totals have any.
   final List<String> checks;
   final List<String> problems;
+
+  /// Balances the bank printed for the account, oldest first. Imports keep
+  /// them as balance checks, so the account tallies across statements.
+  final List<BalancePoint> checkpoints;
 
   /// Every printed figure was checked and agrees.
   bool get verified => checks.isNotEmpty && problems.isEmpty;

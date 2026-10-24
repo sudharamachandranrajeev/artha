@@ -69,7 +69,8 @@ const arthaHints = <String, String>{
       'lands in another, so the books always balance.',
   'page.import':
       'Choose a PDF statement or an export (CSV, OFX, QFX, QIF). PDFs are matched to their account by '
-      'number, or a new account is made, and only import when their own balances add up. Artha spots '
+      'number, or a new account is made, and only import when their own balances add up. Pick several '
+      'PDFs to import a whole period; the account page shows where its balances tally. Artha spots '
       'duplicates, matches entries you typed and merges both sides of transfers.',
   'page.portfolio':
       'Holdings are valued with the latest price you recorded and today’s exchange rates. '

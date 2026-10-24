@@ -58,6 +58,10 @@ class ImportPlan {
   int? openingBalance;
   String? openingDate;
 
+  /// Statement balances that disagree with ones already recorded for the
+  /// same day. The recorded ones are kept.
+  final conflicts = <String>[];
+
   int count(RowStatus s) => rows.where((r) => r.status == s && r.include).length;
 }
 
@@ -281,13 +285,42 @@ class ImportService {
       rows: rows,
       createsAccount: create,
     );
-    // A brand-new account starts from the statement's brought-forward balance.
-    if (st.lines.isNotEmpty && existing.isEmpty) {
+    // The account's opening balance sits before its earliest statement. A new
+    // account takes this statement's; an account whose history so far came
+    // from later statements moves it back here, so months can arrive in any
+    // order.
+    if (st.lines.isNotEmpty) {
       final opening = st.openingBalance ?? (st.closingBalance == null ? null : st.closingBalance! - st.total);
-      if (opening != null && opening != 0) {
+      final date = st.openingDate ?? addDays(st.lines.first.date, -1);
+      final openingId = '$accountId-opening';
+      final current = existing.where((r) => r.read<String>('id') == openingId).firstOrNull;
+      final earliestOther = existing
+          .where((r) => r.read<String>('id') != openingId)
+          .map((r) => r.read<String>('date'))
+          .fold<String?>(null, (m, d) => m == null || d.compareTo(m) < 0 ? d : m);
+      final reanchor =
+          current != null &&
+          date.compareTo(current.read<String>('date')) < 0 &&
+          (earliestOther == null || earliestOther.compareTo(date) > 0);
+      if (opening != null && (existing.isEmpty || reanchor)) {
         plan
           ..openingBalance = opening
-          ..openingDate = addDays(st.lines.first.date, -1);
+          ..openingDate = date;
+      }
+    }
+    final recorded = {
+      for (final c in await (db.select(
+        db.balanceChecks,
+      )..where((c) => c.accountId.equals(accountId) & c.deleted.not())).get())
+        c.date: c.amount,
+    };
+    for (final c in st.checkpoints) {
+      final had = recorded[c.date];
+      if (had != null && had != c.balance) {
+        plan.conflicts.add(
+          '${niceDate(c.date)}: this statement says ${money(c.balance, code)}, '
+          'an earlier one said ${money(had, code)}',
+        );
       }
     }
     return plan;
@@ -360,10 +393,25 @@ class ImportService {
             merged++;
         }
       }
-      final closing = plan.statement.closingBalance;
-      final closingDate = plan.statement.closingDate;
-      if (closing != null && closingDate != null) {
-        await ledger.saveBalanceCheck(acc, closingDate, closing, note: 'From imported statement');
+      // Every balance the statements print becomes a check, so the account
+      // tallies statement by statement; a day already recorded keeps its value.
+      final recorded = {
+        for (final c in await (db.select(
+          db.balanceChecks,
+        )..where((c) => c.accountId.equals(acc) & c.deleted.not())).get())
+          c.date,
+      };
+      for (final c in plan.statement.checkpoints) {
+        if (recorded.add(c.date)) {
+          await ledger.saveBalanceCheck(acc, c.date, c.balance, note: 'From imported statement');
+        }
+      }
+      if (plan.statement.checkpoints.isEmpty) {
+        final closing = plan.statement.closingBalance;
+        final closingDate = plan.statement.closingDate;
+        if (closing != null && closingDate != null && recorded.add(closingDate)) {
+          await ledger.saveBalanceCheck(acc, closingDate, closing, note: 'From imported statement');
+        }
       }
     });
     return ImportResult(created, linked, merged, skipped);

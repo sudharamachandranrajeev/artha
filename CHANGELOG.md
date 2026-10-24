@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0-beta.5
+
+- Statements can arrive month by month, in any order, or all at once: choose several PDFs in
+  one go and Artha merges them, orders them, checks each opens where the one before closed and
+  reports any month that is missing. Every balance a statement prints is kept as a check, so an
+  account's page shows whether the ledger agrees with each statement and where it first stops
+  agreeing. An earlier statement imported later moves the opening balance back to its start.
+
 ## 0.2.0-beta.4
 
 - Import PDF statements from UK banks and card issuers. Artha reads the transaction table by its

@@ -405,11 +405,20 @@ class Reports {
   }
 
   /// The newest statement balance per account against the ledger that day.
-  Future<List<TallyRow>> tally() async {
+  Future<List<TallyRow>> tally() => _tally(latestOnly: true);
+
+  /// Every recorded statement balance of one account, oldest first, each
+  /// compared with the ledger on its day.
+  Future<List<TallyRow>> accountTally(String accountId) => _tally(accountId: accountId);
+
+  Future<List<TallyRow>> _tally({bool latestOnly = false, String? accountId}) async {
     final checks = await db
         .customSelect(
-          'SELECT account_id, date, amount FROM balance_checks c WHERE deleted = 0 AND date = '
-          '(SELECT MAX(date) FROM balance_checks d WHERE d.account_id = c.account_id AND d.deleted = 0)',
+          'SELECT account_id, date, amount FROM balance_checks c WHERE deleted = 0 '
+          '${accountId == null ? '' : 'AND account_id = ? '}'
+          '${latestOnly ? 'AND date = (SELECT MAX(date) FROM balance_checks d WHERE d.account_id = c.account_id AND d.deleted = 0) ' : ''}'
+          'ORDER BY date',
+          variables: [if (accountId != null) Variable(accountId)],
           readsFrom: {db.balanceChecks},
         )
         .get();

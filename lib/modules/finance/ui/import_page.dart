@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:brahma_core/brahma_core.dart';
 import 'package:file_picker/file_picker.dart';
@@ -48,26 +49,36 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   String get _prefKey => 'import.csv.$_accountId';
 
   Future<void> _pick() async {
-    final f = await FilePicker.pickFile(
-      dialogTitle: 'Choose a statement',
+    final picked = await FilePicker.pickFiles(
+      dialogTitle: 'Choose statements (select several PDFs to import a whole period)',
       type: FileType.custom,
       allowedExtensions: const ['pdf', 'csv', 'txt', 'ofx', 'qfx', 'qif'],
     );
-    if (f == null || !mounted) return;
-    final size = await f.length();
-    if (!mounted) return;
-    if (size != null && size > _maxBytes) {
-      return showError(context, StatementFormatException('That file is over 20 MB; it is not a statement'));
+    if (picked.isEmpty || !mounted) return;
+    final files = <(PlatformFile, Uint8List)>[];
+    for (final f in picked) {
+      final size = await f.length();
+      final bytes = size != null && size > _maxBytes ? null : await f.readAsBytes();
+      if (!mounted) return;
+      if (bytes == null || bytes.length > _maxBytes) {
+        return showError(context, StatementFormatException('${f.name} is over 20 MB; it is not a statement'));
+      }
+      files.add((f, bytes));
     }
-    final bytes = await f.readAsBytes();
-    if (!mounted) return;
-    if (bytes.length > _maxBytes) {
-      return showError(context, StatementFormatException('That file is over 20 MB; it is not a statement'));
+    bool isPdf((PlatformFile, Uint8List) x) =>
+        (x.$1.extension ?? '').toLowerCase() == 'pdf' ||
+        (x.$2.length > 4 && latin1.decode(x.$2.sublist(0, 5)) == '%PDF-');
+    if (files.length > 1 && !files.every(isPdf)) {
+      return showError(
+        context,
+        StatementFormatException('Select several PDF statements, or one CSV, OFX or QIF file'),
+      );
     }
+    final (f, bytes) = files.first;
     final ext = (f.extension ?? '').replaceFirst('.', '').toLowerCase();
-    if (ext == 'pdf' || (bytes.length > 4 && latin1.decode(bytes.sublist(0, 5)) == '%PDF-')) {
+    if (isPdf(files.first)) {
       setState(() {
-        _fileName = f.name;
+        _fileName = files.length == 1 ? f.name : '${files.length} PDF statements';
         _ext = 'pdf';
         _text = null;
         _csv = null;
@@ -80,8 +91,17 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         _busy = true;
       });
       await guarded(context, () async {
-        final st = parsePdfStatement(await readPdfLines(bytes));
-        if (st.lines.isEmpty) throw StatementFormatException('No transactions found in the statement');
+        final parsed = <ParsedStatement>[];
+        for (final (file, data) in files) {
+          try {
+            final st = parsePdfStatement(await readPdfLines(data));
+            if (st.lines.isEmpty) throw StatementFormatException('No transactions found');
+            parsed.add(st);
+          } on StatementFormatException catch (e) {
+            throw StatementFormatException(files.length == 1 ? e.message : '${file.name}: ${e.message}');
+          }
+        }
+        final st = mergeStatements(parsed);
         setState(() => _pdf = st);
         await _planPdf(recognise: true);
       });
@@ -419,6 +439,11 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         children: [
           if (p.createsAccount) _newAccountPanel(p),
           if (isPdf) _checksPanel(p.statement),
+          for (final c in p.conflicts)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: StatusLabel(Status.warning, 'Balance differs from one already recorded. $c'),
+            ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Wrap(
