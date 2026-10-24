@@ -48,7 +48,8 @@ String roughMoney(int minor, String base) {
 }
 
 /// What is sent with each question. [goals] are the titles of what the user
-/// told Artha (goals, coming costs, preferences).
+/// told Artha (goals, coming costs, preferences); [planned] are one-offs the
+/// user expects, sent as dated totals without their names.
 String assistantBrief({
   required Situation s,
   required RiskAssessment risk,
@@ -57,6 +58,7 @@ String assistantBrief({
   required List<NewsItem> news,
   required String today,
   List<String> goals = const [],
+  List<({String date, int amount})> planned = const [],
 }) {
   final m = s.metrics;
   String money(int v) => roughMoney(v, s.base);
@@ -101,6 +103,12 @@ String assistantBrief({
     b.writeln('Current plan step: ${step.title}${step.gap == null ? '' : ' (${money(step.gap!)} to go)'}.');
   }
   if (goals.isNotEmpty) b.writeln('Told Artha: ${goals.join('; ')}.');
+  final ahead = planned.where((p) => p.date.compareTo(today) >= 0).toList();
+  if (ahead.isNotEmpty) {
+    b.writeln(
+      'Planned one-offs: ${[for (final p in ahead.take(8)) '${money(p.amount)} on ${p.date}'].join(', ')}.',
+    );
+  }
   if (market.bankRate != null) b.writeln('UK Bank Rate ${market.bankRate}% (${market.bankRateDate}).');
   if (market.cpi != null) b.writeln('UK CPI inflation ${market.cpi}% (${market.cpiMonth}).');
   if (s.uk) {

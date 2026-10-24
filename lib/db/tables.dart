@@ -138,6 +138,18 @@ class Recurrings extends Table with SyncedRow {
   BoolColumn get dismissed => boolean().withDefault(const Constant(false))();
 }
 
+/// A one-off payment or receipt the user expects on [date] (a bonus, a tax
+/// bill, a holiday), so the forecast can include it.
+@DataClassName('PlannedRow')
+class Planned extends Table with SyncedRow {
+  TextColumn get label => text()();
+
+  /// Minor units of the base currency; negative for money out.
+  IntColumn get amount => integer()();
+  TextColumn get date => text()();
+  TextColumn get categoryId => text().withDefault(const Constant(''))();
+}
+
 /// Monthly budget for an expense category, in the base currency.
 @DataClassName('Budget')
 class Budgets extends Table with SyncedRow {

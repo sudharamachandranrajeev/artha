@@ -710,4 +710,55 @@ class Ledger {
 
   /// Shows a hidden detected item again.
   Future<void> unhideRecurring(String key) => store.remove(db.recurrings, 'recurring.hidden.$key');
+
+  /// One-off payments and receipts the user expects, by date.
+  Future<List<PlannedRow>> planned() =>
+      (db.select(db.planned)
+            ..where((p) => p.deleted.not())
+            ..orderBy([(p) => OrderingTerm(expression: p.date)]))
+          .get();
+
+  /// Adds a one-off expected on [date], or changes [id]. [amount] is
+  /// negative for money out, in the base currency.
+  Future<String> savePlanned({
+    String? id,
+    required String label,
+    required int amount,
+    required String date,
+    String categoryId = '',
+  }) => db.transaction(() async {
+    final name = label.trim();
+    if (name.isEmpty) throw LedgerException('Give it a name');
+    if (amount == 0) throw LedgerException('Enter the amount');
+    if (!isValidIsoDate(date)) throw LedgerException('Invalid date "$date"');
+    if (categoryId.isNotEmpty) {
+      final a = await (db.select(db.accounts)..where((x) => x.id.equals(categoryId))).getSingleOrNull();
+      final kind = amount < 0 ? AccountKind.expense.name : AccountKind.income.name;
+      if (a == null || a.deleted || a.kind != kind) {
+        throw LedgerException(amount < 0 ? 'Pick a spending category' : 'Pick an income category');
+      }
+    }
+    if (id != null) {
+      final old = await (db.select(
+        db.planned,
+      )..where((p) => p.id.equals(id) & p.deleted.not())).getSingleOrNull();
+      if (old == null) throw LedgerException('That item no longer exists');
+    }
+    final rowId = id ?? 'planned.${newId()}';
+    await store.save(
+      db.planned,
+      PlannedCompanion.insert(
+        id: rowId,
+        label: name,
+        amount: amount,
+        date: date,
+        categoryId: Value(categoryId),
+        deleted: const Value(false),
+      ),
+      rowId,
+    );
+    return rowId;
+  });
+
+  Future<void> deletePlanned(String id) => store.remove(db.planned, id);
 }

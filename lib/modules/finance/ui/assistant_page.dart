@@ -27,6 +27,7 @@ final assistantBriefProvider = FutureProvider<String>((ref) async {
   final risk = await ref.watch(riskProvider.future);
   final world = await ref.watch(worldProvider.future);
   final facts = (await ref.watch(insightsProvider.future)).facts.where((f) => f.state == 'user');
+  final planned = await ref.watch(plannedProvider.future);
   return assistantBrief(
     s: s,
     risk: risk,
@@ -35,6 +36,7 @@ final assistantBriefProvider = FutureProvider<String>((ref) async {
     news: world.news,
     today: ref.watch(todayProvider),
     goals: [for (final f in facts) f.title],
+    planned: [for (final p in planned) (date: p.date, amount: p.amount)],
   );
 });
 

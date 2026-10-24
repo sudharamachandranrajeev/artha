@@ -260,6 +260,17 @@ void main() {
     expect(find.text('Next 90 days'), findsOneWidget);
     expect(find.textContaining('2 recurring items on schedule'), findsOneWidget);
     expect(find.textContaining('expected on'), findsOneWidget);
+    await app.tapText('Plan a one-off');
+    await app.enter('Name', 'Car insurance');
+    await app.enter('Amount (GBP)', '450');
+    await app.tapText('Save');
+    expect(find.text('Car insurance'), findsOneWidget);
+    expect(find.text('-£450.00'), findsOneWidget);
+    expect(find.textContaining('1 planned one-off and'), findsOneWidget);
+    await app.tapText('Car insurance');
+    await app.tapText('Delete');
+    expect(find.text('Car insurance'), findsNothing);
+    expect(await tester.runAsync(app.ledger.planned), isEmpty);
     expect(tester.takeException(), isNull);
     await app.close();
   });

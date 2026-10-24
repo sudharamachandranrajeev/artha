@@ -234,6 +234,10 @@ class ForecastChart extends StatelessWidget {
     final scale = math.pow(10, currencyInfo(base).scale);
     final short = lo < 0;
     final line = short ? Status.warning.color : skin.series[0];
+    final oneOffDays = {
+      for (final e in f.events)
+        if (e.oneOff) daysBetween(f.today, e.date),
+    };
     String day(int i) {
       final d = i == 0 ? f.today : f.dateAt(i - 1);
       return '${int.parse(d.substring(8))} ${monthLabel(d.substring(0, 7))}';
@@ -281,7 +285,16 @@ class ForecastChart extends StatelessWidget {
                 color: line,
                 barWidth: 2.5,
                 isStrokeCapRound: true,
-                dotData: const FlDotData(show: false),
+                // A dot marks each day a planned one-off lands.
+                dotData: FlDotData(
+                  checkToShowDot: (spot, _) => oneOffDays.contains(spot.x.round()),
+                  getDotPainter: (_, _, _, _) => FlDotCirclePainter(
+                    radius: 3.5,
+                    color: line,
+                    strokeWidth: 2,
+                    strokeColor: Theme.of(context).cardColor,
+                  ),
+                ),
                 belowBarData: BarAreaData(show: true, color: line.withValues(alpha: 0.10)),
               ),
             ],

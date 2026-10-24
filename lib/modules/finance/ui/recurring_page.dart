@@ -290,3 +290,119 @@ Future<void> editRecurring(BuildContext context, WidgetRef ref, {Recurring? item
     }),
   );
 }
+
+/// Plans a one-off payment or receipt for the forecast, or edits [item].
+Future<void> editPlanned(BuildContext context, WidgetRef ref, {PlannedRow? item}) async {
+  final cur = ref.read(setupProvider).value ?? 'GBP';
+  final scale = currencyInfo(cur).scale;
+  final accounts = ref.read(accountsProvider).value ?? const <Account>[];
+  final label = TextEditingController(text: item?.label ?? '');
+  final amount = TextEditingController(text: item == null ? '' : units(item.amount.abs(), scale));
+  var out = item == null || item.amount < 0;
+  var date = item?.date ?? addDays(ref.read(todayProvider), 7);
+  String? category = item == null || item.categoryId.isEmpty ? null : item.categoryId;
+  final form = GlobalKey<FormState>();
+  // true saves, false deletes, null cancels.
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) {
+        final kind = out ? 'expense' : 'income';
+        final categories =
+            accounts.where((a) => a.kind == kind && !a.closed && a.id != uncategorizedId).toList()
+              ..sort((a, b) => a.name.compareTo(b.name));
+        if (!categories.any((c) => c.id == category)) category = null;
+        return AlertDialog(
+          title: Text(item == null ? 'Plan a one-off' : 'Edit one-off'),
+          content: SizedBox(
+            width: 420,
+            child: Form(
+              key: form,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: label,
+                      autofocus: item == null,
+                      decoration: const InputDecoration(
+                        labelText: 'Name',
+                        helperText: 'e.g. Car insurance, tax bill, bonus',
+                      ),
+                      validator: (v) => (v ?? '').trim().isEmpty ? 'Give it a name' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment(value: true, label: Text('Money out')),
+                        ButtonSegment(value: false, label: Text('Money in')),
+                      ],
+                      selected: {out},
+                      onSelectionChanged: (s) => setState(() => out = s.first),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: amount,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: InputDecoration(labelText: 'Amount ($cur)'),
+                      validator: (v) {
+                        final x = parseMinor((v ?? '').trim(), scale);
+                        return x == null || x <= 0 ? 'Not an amount' : null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    DateField(value: date, label: 'Expected on', onChanged: (v) => setState(() => date = v)),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String?>(
+                      initialValue: category,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'Category (optional)'),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('None')),
+                        for (final c in categories)
+                          DropdownMenuItem(
+                            value: c.id,
+                            child: Text(c.name, overflow: TextOverflow.ellipsis),
+                          ),
+                      ],
+                      onChanged: (v) => setState(() => category = v),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            if (item != null)
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Delete')),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                if (form.currentState!.validate()) Navigator.pop(context, true);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+  if (ok == null || !context.mounted) return;
+  if (!ok) {
+    await guarded(context, () => ref.mutate((s) => s.ledger.deletePlanned(item!.id)));
+    return;
+  }
+  final minor = parseMinor(amount.text.trim(), scale)!;
+  await guarded(
+    context,
+    () => ref.mutate(
+      (s) => s.ledger.savePlanned(
+        id: item?.id,
+        label: label.text,
+        amount: out ? -minor : minor,
+        date: date,
+        categoryId: category ?? '',
+      ),
+    ),
+  );
+}

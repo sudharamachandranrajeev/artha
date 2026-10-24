@@ -227,6 +227,7 @@ void main() {
       news: const [NewsItem(title: 'Rates held', link: 'https://e.com', source: 'BoE', date: '2026-10-22')],
       today: '2026-10-24',
       goals: const ['House deposit by 2029'],
+      planned: const [(date: '2026-12-01', amount: -85000), (date: '2026-01-01', amount: -1000)],
     );
 
     test('the brief rounds amounts and leaves out names and numbers', () {
@@ -234,6 +235,7 @@ void main() {
       expect(brief, contains('Bank Rate 3.75%'));
       expect(brief, contains('House deposit by 2029'));
       expect(brief, contains('Rates held'));
+      expect(brief, contains('Planned one-offs: -£900 on 2026-12-01.'));
       for (final secret in ['Secret Account Name', 'Monzo', '4929', '1,234,567', '12,345']) {
         expect(brief, isNot(contains(secret)));
       }

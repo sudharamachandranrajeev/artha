@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
-import '../../../db/database.dart' show Fact;
+import '../../../db/database.dart' show Fact, PlannedRow;
 import '../../../ui/components.dart';
 import '../../../ui/theme.dart';
 import '../insights/forecast.dart';
@@ -68,6 +68,7 @@ class DashboardPage extends ConsumerWidget {
             final m = insights.value?.metrics;
             final facts = insights.value?.facts ?? const <Fact>[];
             final recurring = insights.value?.recurring ?? const <Recurring>[];
+            final planned = ref.watch(plannedProvider).value ?? const <PlannedRow>[];
             final cur = ref.watch(setupProvider).value ?? 'GBP';
             if (!hasAccounts) {
               return Card(
@@ -302,19 +303,28 @@ class DashboardPage extends ConsumerWidget {
                     ),
                   ),
                 ],
-                if (m != null && (m.liquid != 0 || recurring.isNotEmpty)) ...[
-                  SectionHeader('Next 90 days'),
+                if (m != null && (m.liquid != 0 || recurring.isNotEmpty || planned.isNotEmpty)) ...[
+                  SectionHeader(
+                    'Next 90 days',
+                    actionLabel: 'Plan a one-off',
+                    onAction: () => editPlanned(context, ref),
+                  ),
                   Hint(
                     'card.forecast',
                     child: _forecastCard(
                       context,
+                      ref,
                       forecastCash(
                         liquid: m.liquid,
                         recurring: recurring,
                         monthlySpend: m.monthlySpend,
                         today: ref.watch(todayProvider),
+                        oneOffs: [
+                          for (final p in planned) ForecastEvent(p.date, p.label, p.amount, id: p.id),
+                        ],
                       ),
                       recurring.length,
+                      planned,
                       cur,
                     ),
                   ),
@@ -409,8 +419,20 @@ class DashboardPage extends ConsumerWidget {
 
   /// Expected liquid money over the next 90 days, its lowest point and what
   /// the projection assumes.
-  Widget _forecastCard(BuildContext context, CashForecast f, int scheduled, String cur) {
+  Widget _forecastCard(
+    BuildContext context,
+    WidgetRef ref,
+    CashForecast f,
+    int scheduled,
+    List<PlannedRow> planned,
+    String cur,
+  ) {
     final low = f.lowest;
+    final byId = {for (final p in planned) p.id: p};
+    final oneOffs = [
+      for (final e in f.events)
+        if (byId[e.id] case final p?) (e, p),
+    ];
     final caption = TextStyle(fontSize: 12, color: ArthaSkin.of(context).muted);
     return Card(
       child: Padding(
@@ -433,10 +455,29 @@ class DashboardPage extends ConsumerWidget {
               style: const TextStyle(fontWeight: FontWeight.w600).merge(tabular),
             ),
             const SizedBox(height: 8),
+            if (oneOffs.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              for (final (e, p) in oneOffs)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(e.amount < 0 ? Icons.event_busy_outlined : Icons.event_available_outlined),
+                  title: Text(e.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(niceDate(p.date)),
+                  trailing: Text(
+                    money(e.amount, cur, signed: true),
+                    style: const TextStyle(fontWeight: FontWeight.w600).merge(tabular),
+                  ),
+                  onTap: () => editPlanned(context, ref, item: p),
+                ),
+            ],
+            const SizedBox(height: 8),
             Text(
               'From your current, savings and cash balances: $scheduled recurring '
-              '${scheduled == 1 ? 'item' : 'items'} on schedule and ${money(f.everydayPerMonth, cur)} a '
-              'month of everyday spending. One-off income is left out.',
+              '${scheduled == 1 ? 'item' : 'items'} on schedule'
+              '${oneOffs.isEmpty ? '' : ', ${oneOffs.length} planned one-off${oneOffs.length == 1 ? '' : 's'}'} '
+              'and ${money(f.everydayPerMonth, cur)} a month of everyday spending. Other irregular income '
+              'is left out.',
               style: caption,
             ),
           ],

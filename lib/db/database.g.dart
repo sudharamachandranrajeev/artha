@@ -3909,6 +3909,399 @@ class RecurringsCompanion extends UpdateCompanion<RecurringRow> {
   }
 }
 
+class $PlannedTable extends Planned with TableInfo<$PlannedTable, PlannedRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PlannedTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _hlcMeta = const VerificationMeta('hlc');
+  @override
+  late final GeneratedColumn<String> hlc = GeneratedColumn<String>(
+    'hlc',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta('deleted');
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('CHECK ("deleted" IN (0, 1))'),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  @override
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+    'label',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<int> amount = GeneratedColumn<int>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<String> date = GeneratedColumn<String>(
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta('categoryId');
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+    'category_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, hlc, deleted, label, amount, date, categoryId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'planned';
+  @override
+  VerificationContext validateIntegrity(Insertable<PlannedRow> instance, {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('hlc')) {
+      context.handle(_hlcMeta, hlc.isAcceptableOrUnknown(data['hlc']!, _hlcMeta));
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(_deletedMeta, deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta));
+    }
+    if (data.containsKey('label')) {
+      context.handle(_labelMeta, label.isAcceptableOrUnknown(data['label']!, _labelMeta));
+    } else if (isInserting) {
+      context.missing(_labelMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(_amountMeta, amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('date')) {
+      context.handle(_dateMeta, date.isAcceptableOrUnknown(data['date']!, _dateMeta));
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PlannedRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PlannedRow(
+      id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      hlc: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}hlc'])!,
+      deleted: attachedDatabase.typeMapping.read(DriftSqlType.bool, data['${effectivePrefix}deleted'])!,
+      label: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}label'])!,
+      amount: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}amount'])!,
+      date: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}date'])!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_id'],
+      )!,
+    );
+  }
+
+  @override
+  $PlannedTable createAlias(String alias) {
+    return $PlannedTable(attachedDatabase, alias);
+  }
+}
+
+class PlannedRow extends DataClass implements Insertable<PlannedRow> {
+  final String id;
+  final String hlc;
+  final bool deleted;
+  final String label;
+
+  /// Minor units of the base currency; negative for money out.
+  final int amount;
+  final String date;
+  final String categoryId;
+  const PlannedRow({
+    required this.id,
+    required this.hlc,
+    required this.deleted,
+    required this.label,
+    required this.amount,
+    required this.date,
+    required this.categoryId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['hlc'] = Variable<String>(hlc);
+    map['deleted'] = Variable<bool>(deleted);
+    map['label'] = Variable<String>(label);
+    map['amount'] = Variable<int>(amount);
+    map['date'] = Variable<String>(date);
+    map['category_id'] = Variable<String>(categoryId);
+    return map;
+  }
+
+  PlannedCompanion toCompanion(bool nullToAbsent) {
+    return PlannedCompanion(
+      id: Value(id),
+      hlc: Value(hlc),
+      deleted: Value(deleted),
+      label: Value(label),
+      amount: Value(amount),
+      date: Value(date),
+      categoryId: Value(categoryId),
+    );
+  }
+
+  factory PlannedRow.fromJson(Map<String, dynamic> json, {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PlannedRow(
+      id: serializer.fromJson<String>(json['id']),
+      hlc: serializer.fromJson<String>(json['hlc']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      label: serializer.fromJson<String>(json['label']),
+      amount: serializer.fromJson<int>(json['amount']),
+      date: serializer.fromJson<String>(json['date']),
+      categoryId: serializer.fromJson<String>(json['categoryId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'hlc': serializer.toJson<String>(hlc),
+      'deleted': serializer.toJson<bool>(deleted),
+      'label': serializer.toJson<String>(label),
+      'amount': serializer.toJson<int>(amount),
+      'date': serializer.toJson<String>(date),
+      'categoryId': serializer.toJson<String>(categoryId),
+    };
+  }
+
+  PlannedRow copyWith({
+    String? id,
+    String? hlc,
+    bool? deleted,
+    String? label,
+    int? amount,
+    String? date,
+    String? categoryId,
+  }) => PlannedRow(
+    id: id ?? this.id,
+    hlc: hlc ?? this.hlc,
+    deleted: deleted ?? this.deleted,
+    label: label ?? this.label,
+    amount: amount ?? this.amount,
+    date: date ?? this.date,
+    categoryId: categoryId ?? this.categoryId,
+  );
+  PlannedRow copyWithCompanion(PlannedCompanion data) {
+    return PlannedRow(
+      id: data.id.present ? data.id.value : this.id,
+      hlc: data.hlc.present ? data.hlc.value : this.hlc,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      label: data.label.present ? data.label.value : this.label,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      date: data.date.present ? data.date.value : this.date,
+      categoryId: data.categoryId.present ? data.categoryId.value : this.categoryId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PlannedRow(')
+          ..write('id: $id, ')
+          ..write('hlc: $hlc, ')
+          ..write('deleted: $deleted, ')
+          ..write('label: $label, ')
+          ..write('amount: $amount, ')
+          ..write('date: $date, ')
+          ..write('categoryId: $categoryId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, hlc, deleted, label, amount, date, categoryId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PlannedRow &&
+          other.id == this.id &&
+          other.hlc == this.hlc &&
+          other.deleted == this.deleted &&
+          other.label == this.label &&
+          other.amount == this.amount &&
+          other.date == this.date &&
+          other.categoryId == this.categoryId);
+}
+
+class PlannedCompanion extends UpdateCompanion<PlannedRow> {
+  final Value<String> id;
+  final Value<String> hlc;
+  final Value<bool> deleted;
+  final Value<String> label;
+  final Value<int> amount;
+  final Value<String> date;
+  final Value<String> categoryId;
+  final Value<int> rowid;
+  const PlannedCompanion({
+    this.id = const Value.absent(),
+    this.hlc = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.label = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.date = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PlannedCompanion.insert({
+    required String id,
+    this.hlc = const Value.absent(),
+    this.deleted = const Value.absent(),
+    required String label,
+    required int amount,
+    required String date,
+    this.categoryId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       label = Value(label),
+       amount = Value(amount),
+       date = Value(date);
+  static Insertable<PlannedRow> custom({
+    Expression<String>? id,
+    Expression<String>? hlc,
+    Expression<bool>? deleted,
+    Expression<String>? label,
+    Expression<int>? amount,
+    Expression<String>? date,
+    Expression<String>? categoryId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (hlc != null) 'hlc': hlc,
+      if (deleted != null) 'deleted': deleted,
+      if (label != null) 'label': label,
+      if (amount != null) 'amount': amount,
+      if (date != null) 'date': date,
+      if (categoryId != null) 'category_id': categoryId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PlannedCompanion copyWith({
+    Value<String>? id,
+    Value<String>? hlc,
+    Value<bool>? deleted,
+    Value<String>? label,
+    Value<int>? amount,
+    Value<String>? date,
+    Value<String>? categoryId,
+    Value<int>? rowid,
+  }) {
+    return PlannedCompanion(
+      id: id ?? this.id,
+      hlc: hlc ?? this.hlc,
+      deleted: deleted ?? this.deleted,
+      label: label ?? this.label,
+      amount: amount ?? this.amount,
+      date: date ?? this.date,
+      categoryId: categoryId ?? this.categoryId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (hlc.present) {
+      map['hlc'] = Variable<String>(hlc.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<int>(amount.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<String>(date.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PlannedCompanion(')
+          ..write('id: $id, ')
+          ..write('hlc: $hlc, ')
+          ..write('deleted: $deleted, ')
+          ..write('label: $label, ')
+          ..write('amount: $amount, ')
+          ..write('date: $date, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -6159,6 +6552,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $BalanceChecksTable balanceChecks = $BalanceChecksTable(this);
   late final $RulesTable rules = $RulesTable(this);
   late final $RecurringsTable recurrings = $RecurringsTable(this);
+  late final $PlannedTable planned = $PlannedTable(this);
   late final $BudgetsTable budgets = $BudgetsTable(this);
   late final $TargetsTable targets = $TargetsTable(this);
   late final $FactsTable facts = $FactsTable(this);
@@ -6180,6 +6574,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     balanceChecks,
     rules,
     recurrings,
+    planned,
     budgets,
     targets,
     facts,
@@ -8196,6 +8591,202 @@ typedef $$RecurringsTableProcessedTableManager =
       RecurringRow,
       PrefetchHooks Function()
     >;
+typedef $$PlannedTableCreateCompanionBuilder = PlannedCompanion Function({
+  required String id,
+  Value<String> hlc,
+  Value<bool> deleted,
+  required String label,
+  required int amount,
+  required String date,
+  Value<String> categoryId,
+  Value<int> rowid,
+});
+typedef $$PlannedTableUpdateCompanionBuilder = PlannedCompanion Function({
+  Value<String> id,
+  Value<String> hlc,
+  Value<bool> deleted,
+  Value<String> label,
+  Value<int> amount,
+  Value<String> date,
+  Value<String> categoryId,
+  Value<int> rowid,
+});
+
+class $$PlannedTableFilterComposer extends Composer<_$AppDatabase, $PlannedTable> {
+  $$PlannedTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get hlc =>
+      $composableBuilder(column: $table.hlc, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get categoryId =>
+      $composableBuilder(column: $table.categoryId, builder: (column) => ColumnFilters(column));
+}
+
+class $$PlannedTableOrderingComposer extends Composer<_$AppDatabase, $PlannedTable> {
+  $$PlannedTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get hlc =>
+      $composableBuilder(column: $table.hlc, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get categoryId =>
+      $composableBuilder(column: $table.categoryId, builder: (column) => ColumnOrderings(column));
+}
+
+class $$PlannedTableAnnotationComposer extends Composer<_$AppDatabase, $PlannedTable> {
+  $$PlannedTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id => $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get hlc => $composableBuilder(column: $table.hlc, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<String> get label => $composableBuilder(column: $table.label, builder: (column) => column);
+
+  GeneratedColumn<int> get amount => $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get date => $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get categoryId =>
+      $composableBuilder(column: $table.categoryId, builder: (column) => column);
+}
+
+class $$PlannedTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PlannedTable,
+          PlannedRow,
+          $$PlannedTableFilterComposer,
+          $$PlannedTableOrderingComposer,
+          $$PlannedTableAnnotationComposer,
+          $$PlannedTableCreateCompanionBuilder,
+          $$PlannedTableUpdateCompanionBuilder,
+          (PlannedRow, BaseReferences<_$AppDatabase, $PlannedTable, PlannedRow>),
+          PlannedRow,
+          PrefetchHooks Function()
+        > {
+  $$PlannedTableTableManager(_$AppDatabase db, $PlannedTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () => $$PlannedTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () => $$PlannedTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () => $$PlannedTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> hlc = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<String> label = const Value.absent(),
+                Value<int> amount = const Value.absent(),
+                Value<String> date = const Value.absent(),
+                Value<String> categoryId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PlannedCompanion(
+                id: id,
+                hlc: hlc,
+                deleted: deleted,
+                label: label,
+                amount: amount,
+                date: date,
+                categoryId: categoryId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String> hlc = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                required String label,
+                required int amount,
+                required String date,
+                Value<String> categoryId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PlannedCompanion.insert(
+                id: id,
+                hlc: hlc,
+                deleted: deleted,
+                label: label,
+                amount: amount,
+                date: date,
+                categoryId: categoryId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PlannedTable, PlannedRow>(table),
+                  BaseReferences<_$AppDatabase, $PlannedTable, PlannedRow>(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PlannedTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PlannedTable,
+      PlannedRow,
+      $$PlannedTableFilterComposer,
+      $$PlannedTableOrderingComposer,
+      $$PlannedTableAnnotationComposer,
+      $$PlannedTableCreateCompanionBuilder,
+      $$PlannedTableUpdateCompanionBuilder,
+      (PlannedRow, BaseReferences<_$AppDatabase, $PlannedTable, PlannedRow>),
+      PlannedRow,
+      PrefetchHooks Function()
+    >;
 typedef $$BudgetsTableCreateCompanionBuilder = BudgetsCompanion Function({
   required String id,
   Value<String> hlc,
@@ -9434,6 +10025,7 @@ class $AppDatabaseManager {
       $$BalanceChecksTableTableManager(_db, _db.balanceChecks);
   $$RulesTableTableManager get rules => $$RulesTableTableManager(_db, _db.rules);
   $$RecurringsTableTableManager get recurrings => $$RecurringsTableTableManager(_db, _db.recurrings);
+  $$PlannedTableTableManager get planned => $$PlannedTableTableManager(_db, _db.planned);
   $$BudgetsTableTableManager get budgets => $$BudgetsTableTableManager(_db, _db.budgets);
   $$TargetsTableTableManager get targets => $$TargetsTableTableManager(_db, _db.targets);
   $$FactsTableTableManager get facts => $$FactsTableTableManager(_db, _db.facts);

@@ -4,12 +4,18 @@ import 'insights.dart';
 
 /// One expected payment or receipt in a forecast.
 class ForecastEvent {
-  const ForecastEvent(this.date, this.label, this.amount);
+  const ForecastEvent(this.date, this.label, this.amount, {this.oneOff = false, this.id});
   final String date;
   final String label;
 
   /// Negative for money out.
   final int amount;
+
+  /// Planned by the user once, rather than repeating.
+  final bool oneOff;
+
+  /// The planned item's row, for a one-off.
+  final String? id;
 }
 
 /// Liquid money day by day over the next [days], in the base currency.
@@ -23,7 +29,7 @@ class CashForecast {
   /// Balance at the end of each day: index 0 is tomorrow.
   final List<int> balances;
 
-  /// Recurring payments and income expected, in date order.
+  /// Recurring and one-off payments and income expected, in date order.
   final List<ForecastEvent> events;
 
   /// Spending that does not repeat on a schedule, spread evenly.
@@ -46,14 +52,16 @@ class CashForecast {
 
 /// Projects [liquid] forward: every [recurring] item at its cadence, and the
 /// rest of [monthlySpend] (the part no recurring payment explains) spent
-/// evenly. Income that does not recur on a schedule is left out, so the
-/// forecast errs low. A recurring item already due is expected tomorrow,
-/// since statements arrive after the fact.
+/// evenly, plus the [oneOffs] the user planned. Other income that does not
+/// recur on a schedule is left out, so the forecast errs low. A recurring
+/// item already due is expected tomorrow, since statements arrive after the
+/// fact; so is a one-off planned for today. Earlier one-offs have passed.
 CashForecast forecastCash({
   required int liquid,
   required List<Recurring> recurring,
   required int monthlySpend,
   required String today,
+  List<ForecastEvent> oneOffs = const [],
   int days = 90,
 }) {
   final end = addDays(today, days);
@@ -79,6 +87,10 @@ CashForecast forecastCash({
         events.add(ForecastEvent(due, r.label, r.amount));
       }
     }
+  }
+  for (final o in oneOffs) {
+    if (o.date.compareTo(today) < 0 || o.date.compareTo(end) > 0) continue;
+    events.add(ForecastEvent(o.date == today ? tomorrow : o.date, o.label, o.amount, oneOff: true, id: o.id));
   }
   events.sort((a, b) => a.date.compareTo(b.date));
   final everyday = monthlySpend > recurringOut ? monthlySpend - recurringOut : 0;

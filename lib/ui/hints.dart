@@ -64,7 +64,8 @@ const arthaHints = <String, String>{
   'settings.base': 'Totals, charts and reports are shown in this currency.',
   'settings.appearance': 'Pick a colour palette and light or dark. Kept on this device, never synced.',
   'card.forecast':
-      'Where your spendable money is heading if bills, pay and everyday spending carry on as they have.',
+      'Where your spendable money is heading if bills, pay and everyday spending carry on as they have, '
+      'plus the one-offs you plan (dots on the line).',
   'card.budgets': 'This month’s spending against the monthly budget you set for each category.',
   'card.bills': 'Payments that repeat on a steady schedule, with the date each is next expected.',
   // Page banners

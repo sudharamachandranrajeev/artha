@@ -334,3 +334,9 @@ final recurringRowsProvider = FutureProvider<List<RecurringRow>>((ref) {
   ref.watch(revisionProvider);
   return ref.watch(sessionProvider).ledger.recurrings();
 });
+
+/// One-off payments and receipts the user planned, by date.
+final plannedProvider = FutureProvider<List<PlannedRow>>((ref) {
+  ref.watch(revisionProvider);
+  return ref.watch(sessionProvider).ledger.planned();
+});

@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'support.dart';
 
 void main() {
-  test('a version 1 database gains the review flag, rename rules and recurrings, keeping its data', () async {
+  test('a version 1 database gains the review flag, rename rules, recurrings and planned one-offs, keeping its data', () async {
     final file = File('${(await Directory.systemTemp.createTemp('artha')).path}/t.db');
     var db = await openTestDatabase(file: file);
     var ledger = Ledger(await Store.open(db));
@@ -29,6 +29,7 @@ void main() {
     await db.customStatement('ALTER TABLE entries DROP COLUMN reviewed');
     await db.customStatement('ALTER TABLE rules DROP COLUMN payee');
     await db.customStatement('DROP TABLE recurrings');
+    await db.customStatement('DROP TABLE planned');
     await db.customStatement('PRAGMA user_version = 1');
     await db.close();
 
@@ -39,7 +40,26 @@ void main() {
     final r = (await ledger.rules()).single;
     expect((r.pattern, r.accountId, r.payee), ('tesco', 'cat.groceries', null));
     expect(await db.select(db.recurrings).get(), isEmpty);
+    expect(await ledger.planned(), isEmpty);
     expect((await ledger.balances())[bank]!.amount, -500);
+    await db.close();
+  });
+
+  test('a version 2 database gains planned one-offs and pulls everything again', () async {
+    final file = File('${(await Directory.systemTemp.createTemp('artha')).path}/t.db');
+    var db = await openTestDatabase(file: file);
+    await Ledger(await Store.open(db)).seedDefaults('GBP');
+    await db.customStatement('DROP TABLE planned');
+    await db.customStatement("INSERT INTO sync_cursors (device_id, seq) VALUES ('phone', 42)");
+    await db.customStatement('PRAGMA user_version = 2');
+    await db.close();
+
+    db = await openTestDatabase(file: file);
+    // Rows an older version skipped come back on the next sync.
+    expect(await db.customSelect('SELECT * FROM sync_cursors').get(), isEmpty);
+    final ledger = Ledger(await Store.open(db));
+    await ledger.savePlanned(label: 'Bonus', amount: 100000, date: '2026-12-15');
+    expect((await ledger.planned()).single.label, 'Bonus');
     await db.close();
   });
 }

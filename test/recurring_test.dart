@@ -165,5 +165,38 @@ void main() {
       await ledger.hideRecurring('-tesco', 'TESCO');
       expect((await ledger.recurrings()).single.dismissed, isTrue);
     });
+
+    test('plans, validates, edits and deletes one-offs, soonest first', () async {
+      expect(
+        () => ledger.savePlanned(label: ' ', amount: -1, date: '2026-11-01'),
+        throwsA(isA<LedgerException>()),
+      );
+      expect(
+        () => ledger.savePlanned(label: 'x', amount: 0, date: '2026-11-01'),
+        throwsA(isA<LedgerException>()),
+      );
+      expect(
+        () => ledger.savePlanned(label: 'x', amount: -1, date: '2026-13-01'),
+        throwsA(isA<LedgerException>()),
+      );
+      expect(
+        () => ledger.savePlanned(label: 'x', amount: 100, date: '2026-11-01', categoryId: 'cat.groceries'),
+        throwsA(isA<LedgerException>()),
+      );
+      final tax = await ledger.savePlanned(label: ' Tax bill ', amount: -150000, date: '2027-01-31');
+      await ledger.savePlanned(label: 'Bonus', amount: 200000, date: '2026-12-15', categoryId: 'cat.salary');
+      expect([for (final p in await ledger.planned()) p.label], ['Bonus', 'Tax bill']);
+      await ledger.savePlanned(id: tax, label: 'Tax bill', amount: -120000, date: '2026-12-01');
+      expect(
+        [for (final p in await ledger.planned()) (p.label, p.amount)],
+        [('Tax bill', -120000), ('Bonus', 200000)],
+      );
+      await ledger.deletePlanned(tax);
+      expect((await ledger.planned()).single.label, 'Bonus');
+      expect(
+        () => ledger.savePlanned(id: tax, label: 'Tax bill', amount: -1, date: '2026-12-01'),
+        throwsA(isA<LedgerException>()),
+      );
+    });
   });
 }

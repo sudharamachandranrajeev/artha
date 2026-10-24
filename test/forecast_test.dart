@@ -45,6 +45,28 @@ void main() {
     expect(f.closing, -70000);
   });
 
+  test('one-offs inside the window are added; past ones have lapsed and today\'s is tomorrow', () {
+    final f = forecastCash(
+      liquid: 10000,
+      recurring: const [],
+      monthlySpend: 0,
+      today: '2026-10-24',
+      days: 30,
+      oneOffs: const [
+        ForecastEvent('2026-10-20', 'GONE', -5000),
+        ForecastEvent('2026-10-24', 'TODAY', -1000),
+        ForecastEvent('2026-11-10', 'BONUS', 40000),
+        ForecastEvent('2026-12-25', 'LATER', -9000),
+      ],
+    );
+    expect(
+      [for (final e in f.events) (e.date, e.label, e.oneOff)],
+      [('2026-10-25', 'TODAY', true), ('2026-11-10', 'BONUS', true)],
+    );
+    expect(f.balances.first, 9000);
+    expect(f.closing, 49000);
+  });
+
   test('with nothing scheduled the balance only falls by everyday spending', () {
     final f = forecastCash(liquid: 10000, recurring: const [], monthlySpend: 0, today: '2026-10-24');
     expect(f.balances.toSet(), {10000});

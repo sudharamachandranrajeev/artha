@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0-beta.14
+
+- Plan one-offs: add a payment or receipt you expect once (car insurance, a tax bill, a bonus)
+  from the dashboard's "Next 90 days" → "Plan a one-off". It goes into the forecast on its date,
+  shows as a dot on the line and is listed under the chart; tap it to edit or delete. One planned
+  for today counts from tomorrow; past ones drop out. Ask Artha also sees them, as dated
+  rounded amounts without their names.
+- Sync: after updating, each device downloads the other devices' changes again once, so items an
+  older version skipped (recurring items from 0.2.0-beta.12, planned one-offs) arrive. Update
+  every device: older versions leave one-offs out until they update.
+
 ## 0.2.0-beta.13
 
 - Insights: "The world this week" shows the live Bank of England Bank Rate and ONS inflation,
