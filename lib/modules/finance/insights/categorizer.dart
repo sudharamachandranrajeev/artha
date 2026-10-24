@@ -43,9 +43,8 @@ class Categorizer {
       return d == 'any' || (amount < 0 ? d == 'out' : d == 'in');
     }
 
-    final lower = text.toLowerCase();
     for (final r in rules) {
-      if (r.pattern.isNotEmpty && lower.contains(r.pattern.toLowerCase()) && fits(r.categoryId)) {
+      if (r.categoryId.isNotEmpty && r.matches(text) && fits(r.categoryId)) {
         return Suggestion(r.categoryId, 1, 'rule');
       }
     }
@@ -162,10 +161,21 @@ class Example {
 }
 
 class CategoryRule {
-  const CategoryRule(this.pattern, this.categoryId);
+  const CategoryRule(this.pattern, this.categoryId, {this.payee});
   final String pattern;
+
+  /// Empty for a rule that only renames.
   final String categoryId;
+
+  /// Name to show instead of the bank's text, or null.
+  final String? payee;
+
+  bool matches(String text) => pattern.isNotEmpty && text.toLowerCase().contains(pattern.toLowerCase());
 }
+
+/// The payee the first renaming rule gives [text], or null.
+String? renamedPayee(List<CategoryRule> rules, String text) =>
+    rules.where((r) => r.payee != null && r.matches(text)).firstOrNull?.payee;
 
 class Suggestion {
   const Suggestion(this.categoryId, this.confidence, this.source);

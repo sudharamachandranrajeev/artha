@@ -15,9 +15,14 @@ import 'common.dart';
 import 'entry_editor.dart';
 import 'import_page.dart';
 import 'insights_page.dart';
+import 'recurring_page.dart';
+import 'transactions_page.dart';
 
 void _openInsights(BuildContext context) =>
     Navigator.push(context, MaterialPageRoute(builder: (_) => const InsightsPage()));
+
+void _openRecurring(BuildContext context) =>
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const RecurringPage()));
 
 void _openBudgets(BuildContext context) =>
     Navigator.push(context, MaterialPageRoute(builder: (_) => const BudgetsPage()));
@@ -248,6 +253,22 @@ class DashboardPage extends ConsumerWidget {
                     child: Text('You saved ${money(net, cur)} this month'),
                   ),
                 ],
+                if ((ref.watch(reviewCountProvider).value ?? 0) case final n when n > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.fact_check_outlined),
+                        title: Text('$n imported ${n == 1 ? 'entry' : 'entries'} to review'),
+                        subtitle: const Text('Check the categories, then mark them reviewed'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const TransactionsPage(review: true)),
+                        ),
+                      ),
+                    ),
+                  ),
                 SectionHeader(
                   'Your activity',
                   actionLabel: 'See all',
@@ -261,8 +282,25 @@ class DashboardPage extends ConsumerWidget {
                 ),
                 Hint('card.budgets', child: _budgetsCard(context, ref, budgets, cur)),
                 if (recurring.any((r) => r.amount < 0)) ...[
-                  SectionHeader('Upcoming bills'),
+                  SectionHeader(
+                    'Upcoming bills',
+                    actionLabel: 'Manage',
+                    onAction: () => _openRecurring(context),
+                  ),
                   Hint('card.bills', child: _billsCard(context, recurring, ref.watch(todayProvider), cur)),
+                ] else if (hasAccounts) ...[
+                  SectionHeader('Upcoming bills'),
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.event_repeat),
+                      title: const Text('No bills spotted yet'),
+                      subtitle: const Text('Add your subscriptions to see them coming'),
+                      trailing: TextButton(
+                        onPressed: () => editRecurring(context, ref),
+                        child: const Text('Add subscription'),
+                      ),
+                    ),
+                  ),
                 ],
                 if (m != null && (m.liquid != 0 || recurring.isNotEmpty)) ...[
                   SectionHeader('Next 90 days'),

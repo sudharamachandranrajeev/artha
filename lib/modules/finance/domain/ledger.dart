@@ -253,6 +253,7 @@ class Ledger {
               status: Value(e.status),
               importRef: Value(e.importRef),
               tags: Value(jsonEncode(e.tags)),
+              reviewed: e.reviewed == null ? const Value.absent() : Value(e.reviewed!),
               deleted: const Value(false),
             ),
           );
@@ -416,50 +417,65 @@ class Ledger {
     );
   });
 
-  /// Categorisation rules in the order they are tried; the first match wins.
+  /// Rules in the order they are tried; the first match wins.
   Future<List<Rule>> rules() =>
       (db.select(db.rules)
             ..where((r) => r.deleted.not())
             ..orderBy([(r) => OrderingTerm(expression: r.position), (r) => OrderingTerm(expression: r.id)]))
           .get();
 
+  /// [rules] in the shape the categoriser and renaming use.
+  Future<List<CategoryRule>> categoryRules() async => [
+    for (final r in await rules()) CategoryRule(r.pattern, r.accountId, payee: r.payee),
+  ];
+
   /// Adds a rule at the end of the list, or changes rule [id]: payee or memo
-  /// text containing [pattern] (any case) goes to category [accountId].
-  Future<String> saveRule({String? id, required String pattern, required String accountId}) => db.transaction(
-    () async {
-      final p = pattern.trim();
-      if (p.length < 2) throw LedgerException('A rule needs at least two characters to look for');
-      final account = await (db.select(db.accounts)..where((a) => a.id.equals(accountId))).getSingleOrNull();
-      if (account == null ||
-          account.deleted ||
-          accountId == uncategorizedId ||
-          !(account.kind == AccountKind.income.name || account.kind == AccountKind.expense.name)) {
-        throw LedgerException('Rules sort into income or spending categories only');
-      }
-      final existing = id == null
-          ? null
-          : await (db.select(db.rules)..where((r) => r.id.equals(id) & r.deleted.not())).getSingleOrNull();
-      if (id != null && existing == null) throw LedgerException('That rule no longer exists');
-      final all = await rules();
-      if (all.any((r) => r.id != id && r.pattern.toLowerCase() == p.toLowerCase())) {
-        throw LedgerException('A rule already looks for “$p”');
-      }
-      final ruleId = id ?? 'rule.${newId()}';
-      await store.save(
-        db.rules,
-        RulesCompanion.insert(
-          id: ruleId,
-          field: 'text',
-          pattern: p,
-          accountId: accountId,
-          position: Value(existing?.position ?? (all.isEmpty ? 0 : all.last.position + 1)),
-          deleted: const Value(false),
-        ),
-        ruleId,
-      );
-      return ruleId;
-    },
-  );
+  /// text containing [pattern] (any case) goes to category [accountId] and/or
+  /// shows as [payee]. A rule needs at least one of the two.
+  Future<String> saveRule({String? id, required String pattern, String? accountId, String? payee}) =>
+      db.transaction(() async {
+        final p = pattern.trim();
+        final rename = payee?.trim();
+        final category = accountId ?? '';
+        if (p.length < 2) throw LedgerException('A rule needs at least two characters to look for');
+        if (category.isEmpty && (rename == null || rename.isEmpty)) {
+          throw LedgerException('A rule needs a category, a new payee name, or both');
+        }
+        if (category.isNotEmpty) {
+          final account = await (db.select(
+            db.accounts,
+          )..where((a) => a.id.equals(category))).getSingleOrNull();
+          if (account == null ||
+              account.deleted ||
+              category == uncategorizedId ||
+              !(account.kind == AccountKind.income.name || account.kind == AccountKind.expense.name)) {
+            throw LedgerException('Rules sort into income or spending categories only');
+          }
+        }
+        final existing = id == null
+            ? null
+            : await (db.select(db.rules)..where((r) => r.id.equals(id) & r.deleted.not())).getSingleOrNull();
+        if (id != null && existing == null) throw LedgerException('That rule no longer exists');
+        final all = await rules();
+        if (all.any((r) => r.id != id && r.pattern.toLowerCase() == p.toLowerCase())) {
+          throw LedgerException('A rule already looks for “$p”');
+        }
+        final ruleId = id ?? 'rule.${newId()}';
+        await store.save(
+          db.rules,
+          RulesCompanion.insert(
+            id: ruleId,
+            field: 'text',
+            pattern: p,
+            accountId: category,
+            payee: Value(rename == null || rename.isEmpty ? null : rename),
+            position: Value(existing?.position ?? (all.isEmpty ? 0 : all.last.position + 1)),
+            deleted: const Value(false),
+          ),
+          ruleId,
+        );
+        return ruleId;
+      });
 
   Future<void> deleteRule(String id) => store.remove(db.rules, id);
 
@@ -479,14 +495,20 @@ class Ledger {
     }
   });
 
-  /// Files every uncategorised two-line entry whose text matches a rule into
-  /// that rule's category. Returns how many entries changed.
+  /// Payee and memo after a rename: the bank's own text moves to the memo, so
+  /// it stays searchable and rules keep matching it.
+  static ({String payee, String memo}) renamed(String payee, String memo, String to) =>
+      (payee: to, memo: [payee, memo].where((s) => s.isNotEmpty).join(' · '));
+
+  /// Applies every rule to what is already recorded: renames payees, and files
+  /// uncategorised two-line entries into a rule's category. Returns how many
+  /// entries changed.
   Future<int> applyRules() => db.transaction(() async {
-    final list = await rules();
+    final list = await categoryRules();
     if (list.isEmpty) return 0;
     final kinds = {for (final a in await db.select(db.accounts).get()) a.id: a.kind};
     final cat = Categorizer(
-      rules: [for (final r in list) CategoryRule(r.pattern, r.accountId)],
+      rules: list,
       history: const [],
       directionOf: (id) => switch (kinds[id]) {
         'expense' => 'out',
@@ -494,29 +516,93 @@ class Ledger {
         _ => 'any',
       },
     );
-    final candidates = await db
-        .customSelect(
-          'SELECT e.id FROM entries e WHERE e.deleted = 0 '
-          "AND EXISTS (SELECT 1 FROM postings u WHERE u.entry_id = e.id AND u.account_id = '$uncategorizedId') "
-          'AND (SELECT COUNT(*) FROM postings q WHERE q.entry_id = e.id) = 2',
-          readsFrom: {db.entries, db.postings},
-        )
-        .get();
     var changed = 0;
-    for (final row in candidates) {
-      final id = row.read<String>('id');
-      final e = await (db.select(db.entries)..where((x) => x.id.equals(id))).getSingle();
+    for (final e in await (db.select(db.entries)..where((x) => x.deleted.not())).get()) {
+      final text = [e.payee, e.memo].where((s) => s.isNotEmpty).join(' · ');
+      final to = renamedPayee(list, text);
+      var payee = e.payee, memo = e.memo;
+      if (to != null && to != e.payee) (payee: payee, memo: memo) = renamed(e.payee, e.memo, to);
+
+      final postings =
+          await (db.select(db.postings)
+                ..where((p) => p.entryId.equals(e.id))
+                ..orderBy([(p) => OrderingTerm(expression: p.position)]))
+              .get();
+      String? category;
+      if (postings.length == 2 && postings.any((p) => p.accountId == uncategorizedId)) {
+        final own = postings.where((p) => p.accountId != uncategorizedId).singleOrNull;
+        // Only money moving through one of the user's accounts.
+        if (own != null && (kinds[own.accountId] == 'asset' || kinds[own.accountId] == 'liability')) {
+          category = cat.suggest(text, own.value)?.categoryId;
+        }
+      }
+      if (category != null) {
+        await saveEntry(
+          EntryInput(
+            id: e.id,
+            date: e.date,
+            currency: e.currency,
+            payee: payee,
+            memo: memo,
+            status: e.status,
+            tags: (jsonDecode(e.tags) as List).cast<String>(),
+            importRef: e.importRef,
+            postings: [
+              for (final p in postings)
+                PostingInput(
+                  p.accountId == uncategorizedId ? category : p.accountId,
+                  p.amount,
+                  p.value,
+                  memo: p.memo,
+                ),
+            ],
+          ),
+        );
+      } else if (payee != e.payee) {
+        await _setText(e.id, payee, memo);
+      } else {
+        continue;
+      }
+      changed++;
+    }
+    return changed;
+  });
+
+  Future<void> _setText(String id, String payee, String memo) async {
+    await (db.update(
+      db.entries,
+    )..where((x) => x.id.equals(id))).write(EntriesCompanion(payee: Value(payee), memo: Value(memo)));
+    await store.touch(db.entries, id);
+  }
+
+  /// Takes entries out of the review queue, or puts them back.
+  Future<void> setReviewed(Iterable<String> ids, {bool reviewed = true}) => db.transaction(() async {
+    for (final id in ids.toSet()) {
+      final n = await (db.update(db.entries)..where((x) => x.id.equals(id) & x.reviewed.equals(!reviewed)))
+          .write(EntriesCompanion(reviewed: Value(reviewed)));
+      if (n > 0) await store.touch(db.entries, id);
+    }
+  });
+
+  /// Files two-line entries into [categoryId] by replacing their category leg,
+  /// and marks them reviewed. Transfers and split entries are left alone.
+  /// Returns how many changed.
+  Future<int> recategorise(Iterable<String> ids, String categoryId) => db.transaction(() async {
+    final kinds = {for (final a in await db.select(db.accounts).get()) a.id: a.kind};
+    bool isCategory(String id) => kinds[id] == 'income' || kinds[id] == 'expense';
+    if (!isCategory(categoryId)) throw LedgerException('Pick an income or spending category');
+    var changed = 0;
+    for (final id in ids.toSet()) {
+      final e = await (db.select(
+        db.entries,
+      )..where((x) => x.id.equals(id) & x.deleted.not())).getSingleOrNull();
+      if (e == null) continue;
       final postings =
           await (db.select(db.postings)
                 ..where((p) => p.entryId.equals(id))
                 ..orderBy([(p) => OrderingTerm(expression: p.position)]))
               .get();
-      final own = postings.where((p) => p.accountId != uncategorizedId).singleOrNull;
-      // Only money moving through one of the user's accounts.
-      if (own == null || !(kinds[own.accountId] == 'asset' || kinds[own.accountId] == 'liability')) continue;
-      final text = [e.payee, e.memo].where((s) => s.isNotEmpty).join(' · ');
-      final s = cat.suggest(text, own.value);
-      if (s == null) continue;
+      if (postings.length != 2 || postings.where((p) => isCategory(p.accountId)).length != 1) continue;
       await saveEntry(
         EntryInput(
           id: e.id,
@@ -527,10 +613,11 @@ class Ledger {
           status: e.status,
           tags: (jsonDecode(e.tags) as List).cast<String>(),
           importRef: e.importRef,
+          reviewed: true,
           postings: [
             for (final p in postings)
               PostingInput(
-                p.accountId == uncategorizedId ? s.categoryId : p.accountId,
+                isCategory(p.accountId) ? categoryId : p.accountId,
                 p.amount,
                 p.value,
                 memo: p.memo,
@@ -542,4 +629,85 @@ class Ledger {
     }
     return changed;
   });
+
+  /// Recurring items the user added, and the detected ones they hid.
+  Future<List<RecurringRow>> recurrings() => (db.select(db.recurrings)..where((r) => r.deleted.not())).get();
+
+  /// Adds a bill, subscription or regular income, or changes [id]. [amount]
+  /// is negative for money out, in the base currency. [pattern] is the text
+  /// that finds its payments (the label when left empty); [anchorDate] is any
+  /// day it falls due, past or next.
+  Future<String> saveRecurring({
+    String? id,
+    required String label,
+    String pattern = '',
+    required int amount,
+    String cadence = 'monthly',
+    required String anchorDate,
+    String categoryId = '',
+  }) => db.transaction(() async {
+    final name = label.trim();
+    final find = pattern.trim().isEmpty ? name : pattern.trim();
+    if (name.isEmpty) throw LedgerException('Give it a name');
+    if (find.length < 2) throw LedgerException('The text to look for needs at least two characters');
+    if (amount == 0) throw LedgerException('Enter the amount');
+    if (!const {'weekly', 'monthly', 'quarterly', 'yearly'}.contains(cadence)) {
+      throw LedgerException('Unknown schedule "$cadence"');
+    }
+    if (!isValidIsoDate(anchorDate)) throw LedgerException('Invalid date "$anchorDate"');
+    if (categoryId.isNotEmpty) {
+      final a = await (db.select(db.accounts)..where((x) => x.id.equals(categoryId))).getSingleOrNull();
+      final kind = amount < 0 ? AccountKind.expense.name : AccountKind.income.name;
+      if (a == null || a.deleted || a.kind != kind) {
+        throw LedgerException(amount < 0 ? 'Pick a spending category' : 'Pick an income category');
+      }
+    }
+    if (id != null) {
+      final old = await (db.select(
+        db.recurrings,
+      )..where((r) => r.id.equals(id) & r.deleted.not())).getSingleOrNull();
+      if (old == null || old.dismissed) throw LedgerException('That item no longer exists');
+    }
+    final rowId = id ?? 'recurring.${newId()}';
+    await store.save(
+      db.recurrings,
+      RecurringsCompanion.insert(
+        id: rowId,
+        label: name,
+        pattern: find,
+        amount: amount,
+        cadence: cadence,
+        anchorDate: anchorDate,
+        categoryId: Value(categoryId),
+        dismissed: const Value(false),
+        deleted: const Value(false),
+      ),
+      rowId,
+    );
+    return rowId;
+  });
+
+  Future<void> deleteRecurring(String id) => store.remove(db.recurrings, id);
+
+  /// Hides a detected item, by its detection [key], on every device.
+  Future<void> hideRecurring(String key, String label) {
+    final id = 'recurring.hidden.$key';
+    return store.save(
+      db.recurrings,
+      RecurringsCompanion.insert(
+        id: id,
+        label: label,
+        pattern: key,
+        amount: 0,
+        cadence: 'monthly',
+        anchorDate: '1970-01-01',
+        dismissed: const Value(true),
+        deleted: const Value(false),
+      ),
+      id,
+    );
+  }
+
+  /// Shows a hidden detected item again.
+  Future<void> unhideRecurring(String key) => store.remove(db.recurrings, 'recurring.hidden.$key');
 }

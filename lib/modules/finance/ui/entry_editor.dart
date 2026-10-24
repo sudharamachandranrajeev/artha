@@ -427,6 +427,7 @@ class _EntryEditorPageState extends ConsumerState<EntryEditorPage> {
           memo: _memo.text.trim(),
           status: old?.status ?? 'cleared',
           importRef: old?.importRef,
+          reviewed: true,
           tags: tags,
           postings: [PostingInput.cash(main.id, -out), PostingInput.cash(_other!, out)],
         );
@@ -443,6 +444,7 @@ class _EntryEditorPageState extends ConsumerState<EntryEditorPage> {
           memo: _memo.text.trim(),
           status: old?.status ?? 'cleared',
           importRef: old?.importRef,
+          reviewed: true,
           tags: tags,
           postings: [PostingInput.cash(main.id, -amount), PostingInput(to.id, toAmount, amount)],
         );

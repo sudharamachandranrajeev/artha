@@ -89,5 +89,12 @@ const arthaHints = <String, String>{
       'base currency. Insights warn when one goes over.',
   'page.rules':
       'Imports try these rules first, top to bottom: the first whose text appears in a description '
-      'picks the category. Spending categories catch money out, income categories money in.',
+      'picks the category and can give the payee a tidier name. Spending categories catch money '
+      'out, income categories money in.',
+  'page.recurring':
+      'Bills and subscriptions: the ones Artha spots in your history and the ones you add. They feed '
+      'Upcoming bills and the 90-day forecast. Hide a spotted one that is not really a bill.',
+  'tx.review':
+      'Imported entries wait here until you have looked at them. Select some to set their category '
+      'or mark them reviewed; on a keyboard, arrows move and R marks the current one.',
 };

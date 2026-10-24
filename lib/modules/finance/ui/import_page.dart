@@ -236,7 +236,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       banner: 'page.import',
       actions: [
         IconButton(
-          tooltip: 'Categorisation rules',
+          tooltip: 'Rules: categories and payee names',
           icon: const Icon(Icons.rule_outlined),
           onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RulesPage())),
         ),
@@ -532,7 +532,15 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(r.line.text, overflow: TextOverflow.ellipsis),
+                        if (r.rename case final name? when r.status == RowStatus.fresh) ...[
+                          Text(name, overflow: TextOverflow.ellipsis),
+                          Text(
+                            r.line.text,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 12, color: muted),
+                          ),
+                        ] else
+                          Text(r.line.text, overflow: TextOverflow.ellipsis),
                         StatusLabel(label(r.status).$1, label(r.status).$2),
                       ],
                     ),

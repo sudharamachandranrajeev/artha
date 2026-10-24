@@ -42,18 +42,57 @@ enum Cadence {
 }
 
 class Recurring {
-  Recurring(this.key, this.label, this.cadence, this.amount, this.lastDate, this.categoryId, this.count);
+  Recurring(
+    this.key,
+    this.label,
+    this.cadence,
+    this.amount,
+    this.lastDate,
+    this.categoryId,
+    this.count, {
+    this.id,
+    this.pattern,
+    this.lastAmount,
+    this.priceFrom,
+    String? next,
+  }) : nextDate =
+           next ?? (cadence == Cadence.monthly ? addMonths(lastDate, 1) : addDays(lastDate, cadence.days));
   final String key;
   final String label;
   final Cadence cadence;
 
-  /// Typical amount, negative for payments out.
+  /// Expected amount, negative for payments out.
   final int amount;
   final String lastDate;
+  final String nextDate;
   final String categoryId;
+
+  /// Payments seen.
   final int count;
-  String get nextDate =>
-      cadence == Cadence.monthly ? addMonths(lastDate, 1) : addDays(lastDate, cadence.days);
+
+  /// The Recurrings row of one the user added; null for one spotted in the
+  /// history.
+  final String? id;
+  final String? pattern;
+  bool get manual => id != null;
+
+  /// The latest payment seen, when there is one.
+  final int? lastAmount;
+
+  /// Set when the latest payment changed a steady price: what it was before.
+  final int? priceFrom;
+}
+
+/// The cadence occurrence of [anchor] number [n] (0 is [anchor] itself).
+String _step(String anchor, Cadence c, int n) =>
+    c == Cadence.monthly ? addMonths(anchor, n) : addDays(anchor, c.days * n);
+
+/// The price before the latest of [amounts] (oldest first) when the earlier
+/// two agree and the latest differs: a fixed price that changed.
+int? _priceChange(List<int> amounts) {
+  final n = amounts.length;
+  if (n < 3 || amounts[n - 2] != amounts[n - 3] || amounts[n - 1] == amounts[n - 2]) return null;
+  return amounts[n - 2];
 }
 
 int _median(List<int> xs) {
@@ -83,7 +122,82 @@ List<Recurring> detectRecurring(List<Txn> txns, String today) {
     if (g.where((t) => (t.amount - amount).abs() * 5 <= amount.abs()).length * 3 < g.length * 2) continue;
     final last = g.last;
     if (daysBetween(today, last.date) > cadence.days * 3 ~/ 2) continue;
-    out.add(Recurring(key, last.text, cadence, amount, last.date, last.categoryId, g.length));
+    final from = _priceChange([for (final t in g) t.amount]);
+    out.add(
+      Recurring(
+        key,
+        last.text,
+        cadence,
+        // After a price change the new price is what to expect.
+        from == null ? amount : last.amount,
+        last.date,
+        last.categoryId,
+        g.length,
+        lastAmount: last.amount,
+        priceFrom: from,
+      ),
+    );
+  }
+  out.sort((a, b) => a.cadence.perMonth(a.amount).compareTo(b.cadence.perMonth(b.amount)));
+  return out;
+}
+
+/// What the recurring list shows: [detected] items, less the ones the user
+/// hid, plus the ones the user added in [rows]. An added item takes over any
+/// detected one whose description contains its text in the same direction,
+/// and is dated from the latest payment matching that text, else from its
+/// anchor date.
+List<Recurring> mergeRecurring(
+  List<Recurring> detected,
+  List<RecurringRow> rows,
+  List<Txn> txns,
+  String today,
+) {
+  final hidden = {for (final r in rows.where((r) => r.dismissed && !r.deleted)) r.pattern};
+  final added = rows.where((r) => !r.dismissed && !r.deleted && r.amount != 0).toList();
+  bool covers(RecurringRow r, String text, int amount) =>
+      (amount < 0) == (r.amount < 0) && text.toLowerCase().contains(r.pattern.toLowerCase());
+  final out = [
+    for (final d in detected)
+      if (!hidden.contains(d.key) && !added.any((r) => covers(r, d.label, d.amount))) d,
+  ];
+  for (final r in added) {
+    final cadence = Cadence.values.where((c) => c.name == r.cadence).firstOrNull ?? Cadence.monthly;
+    final seen = txns.where((t) => covers(r, t.text, t.amount)).toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+    // The last scheduled day on or before today; the anchor itself when it
+    // lies ahead.
+    var n = 0;
+    while (_step(r.anchorDate, cadence, n + 1).compareTo(today) <= 0) {
+      n++;
+    }
+    final ahead = r.anchorDate.compareTo(today) > 0;
+    var last = ahead ? _step(r.anchorDate, cadence, -1) : _step(r.anchorDate, cadence, n);
+    var next = ahead ? r.anchorDate : _step(r.anchorDate, cadence, n + 1);
+    // A payment seen since then moves the last date; one taken a few days
+    // before the next scheduled day is that one, paid early.
+    if (seen.isNotEmpty && seen.last.date.compareTo(last) > 0) {
+      last = seen.last.date;
+      if (last.compareTo(addDays(next, -math.max(1, cadence.days ~/ 6))) >= 0) {
+        next = _step(r.anchorDate, cadence, ahead ? 1 : n + 2);
+      }
+    }
+    out.add(
+      Recurring(
+        'manual/${r.id}',
+        r.label,
+        cadence,
+        r.amount,
+        last,
+        r.categoryId,
+        seen.length,
+        id: r.id,
+        pattern: r.pattern,
+        lastAmount: seen.lastOrNull?.amount,
+        priceFrom: _priceChange([for (final t in seen) t.amount]),
+        next: next,
+      ),
+    );
   }
   out.sort((a, b) => a.cadence.perMonth(a.amount).compareTo(b.cadence.perMonth(b.amount)));
   return out;
@@ -197,6 +311,17 @@ class InsightEngine {
     ];
   }
 
+  /// Detected and user-added recurring payments; see [mergeRecurring].
+  Future<List<Recurring>> recurring([List<Txn>? txns]) async {
+    final all = txns ?? await transactions();
+    return mergeRecurring(
+      detectRecurring(all, today),
+      await (db.select(db.recurrings)..where((r) => r.deleted.not())).get(),
+      all,
+      today,
+    );
+  }
+
   Future<Metrics> metrics() async {
     final m = Metrics();
     final bs = await reports.balanceSheet(today);
@@ -255,7 +380,7 @@ class InsightEngine {
     String name(String id) => reports.accounts[id]?.name ?? id;
 
     // Spending habits.
-    for (final r in detectRecurring(txns, today)) {
+    for (final r in await recurring(txns)) {
       final monthly = r.cadence.perMonth(r.amount).abs();
       out.add(
         Insight(

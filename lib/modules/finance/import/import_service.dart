@@ -40,6 +40,18 @@ class ImportRow {
   String? existingEntryId;
   bool include = true;
 
+  /// The name a rename rule gives the payee; the bank's text then goes to
+  /// the memo.
+  String? rename;
+
+  /// Payee and memo the new entry gets.
+  ({String payee, String memo}) get text {
+    final payee = line.payee.isNotEmpty ? line.payee : line.memo;
+    final memo = line.payee.isNotEmpty ? line.memo : '';
+    final to = rename;
+    return to == null || to == payee ? (payee: payee, memo: memo) : Ledger.renamed(payee, memo, to);
+  }
+
   /// The user says a matched or overlapping row is a different transaction:
   /// it is created as a new entry instead of being linked.
   void keepSeparate() {
@@ -99,11 +111,6 @@ class ImportService {
   /// Builds a categoriser from rules and every categorised two-leg entry.
   Future<Categorizer> categorizer() async {
     final accounts = {for (final a in await db.select(db.accounts).get()) a.id: a};
-    final rules =
-        await (db.select(db.rules)
-              ..where((r) => r.deleted.not())
-              ..orderBy([(r) => OrderingTerm(expression: r.position)]))
-            .get();
     final rows = await db
         .customSelect(
           'SELECT e.payee, e.memo, p.account_id FROM entries e '
@@ -116,7 +123,7 @@ class ImportService {
         )
         .get();
     return Categorizer(
-      rules: [for (final r in rules) CategoryRule(r.pattern, r.accountId)],
+      rules: await ledger.categoryRules(),
       history: [
         for (final r in rows)
           Example('${r.read<String>('payee')} ${r.read<String>('memo')}', r.read<String>('account_id')),
@@ -295,6 +302,7 @@ class ImportService {
       }
       // Kept so that "keep separate" can still offer a category.
       row.suggestion = cat.suggest(line.text, line.amount);
+      row.rename = renamedPayee(cat.rules, line.text);
       if (overlap[i] case final id?) {
         row
           ..status = RowStatus.overlap
@@ -381,20 +389,25 @@ class ImportService {
     return plan;
   }
 
-  /// After a rule is added, files the plan's new rows that a rule now
-  /// catches. Returns how many rows changed category.
+  /// After a rule is added, files and renames the plan's new rows that a rule
+  /// now catches. Returns how many rows changed.
   Future<int> reapplyRules(ImportPlan plan) async {
     final cat = await categorizer();
     var changed = 0;
     for (final r in plan.rows) {
       if (r.status == RowStatus.duplicate) continue;
+      final rename = renamedPayee(cat.rules, r.line.text);
+      var moved = rename != r.rename;
+      r.rename = rename;
       final s = cat.suggest(r.line.text, r.line.amount);
-      if (s?.source != 'rule') continue;
-      r.suggestion = s;
-      if (r.status == RowStatus.fresh && r.categoryId != s!.categoryId) {
-        r.categoryId = s.categoryId;
-        changed++;
+      if (s?.source == 'rule') {
+        r.suggestion = s;
+        if (r.status == RowStatus.fresh && r.categoryId != s!.categoryId) {
+          r.categoryId = s.categoryId;
+          moved = true;
+        }
       }
+      if (moved && r.status == RowStatus.fresh) changed++;
     }
     return changed;
   }
@@ -444,13 +457,15 @@ class ImportService {
           case RowStatus.duplicate:
             skipped++;
           case RowStatus.fresh:
+            final text = row.text;
             await ledger.saveEntry(
               EntryInput(
                 date: line.date,
                 currency: plan.currency,
-                payee: line.payee.isNotEmpty ? line.payee : line.memo,
-                memo: line.payee.isNotEmpty ? line.memo : '',
+                payee: text.payee,
+                memo: text.memo,
                 importRef: row.token,
+                reviewed: false,
                 postings: [
                   PostingInput.cash(acc, line.amount),
                   PostingInput.cash(row.categoryId, -line.amount),

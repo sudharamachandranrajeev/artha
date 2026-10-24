@@ -1287,6 +1287,17 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
     requiredDuringInsert: false,
     defaultValue: const Constant('[]'),
   );
+  static const VerificationMeta _reviewedMeta = const VerificationMeta('reviewed');
+  @override
+  late final GeneratedColumn<bool> reviewed = GeneratedColumn<bool>(
+    'reviewed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('CHECK ("reviewed" IN (0, 1))'),
+    defaultValue: const Constant(true),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1299,6 +1310,7 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
     status,
     importRef,
     tags,
+    reviewed,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1345,6 +1357,9 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
     if (data.containsKey('tags')) {
       context.handle(_tagsMeta, tags.isAcceptableOrUnknown(data['tags']!, _tagsMeta));
     }
+    if (data.containsKey('reviewed')) {
+      context.handle(_reviewedMeta, reviewed.isAcceptableOrUnknown(data['reviewed']!, _reviewedMeta));
+    }
     return context;
   }
 
@@ -1364,6 +1379,7 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
       status: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}status'])!,
       importRef: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}import_ref']),
       tags: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}tags'])!,
+      reviewed: attachedDatabase.typeMapping.read(DriftSqlType.bool, data['${effectivePrefix}reviewed'])!,
     );
   }
 
@@ -1394,6 +1410,9 @@ class Entry extends DataClass implements Insertable<Entry> {
 
   /// JSON array of tag strings.
   final String tags;
+
+  /// False for imported entries nobody has looked at yet (the review queue).
+  final bool reviewed;
   const Entry({
     required this.id,
     required this.hlc,
@@ -1405,6 +1424,7 @@ class Entry extends DataClass implements Insertable<Entry> {
     required this.status,
     this.importRef,
     required this.tags,
+    required this.reviewed,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1421,6 +1441,7 @@ class Entry extends DataClass implements Insertable<Entry> {
       map['import_ref'] = Variable<String>(importRef);
     }
     map['tags'] = Variable<String>(tags);
+    map['reviewed'] = Variable<bool>(reviewed);
     return map;
   }
 
@@ -1436,6 +1457,7 @@ class Entry extends DataClass implements Insertable<Entry> {
       status: Value(status),
       importRef: importRef == null && nullToAbsent ? const Value.absent() : Value(importRef),
       tags: Value(tags),
+      reviewed: Value(reviewed),
     );
   }
 
@@ -1452,6 +1474,7 @@ class Entry extends DataClass implements Insertable<Entry> {
       status: serializer.fromJson<String>(json['status']),
       importRef: serializer.fromJson<String?>(json['importRef']),
       tags: serializer.fromJson<String>(json['tags']),
+      reviewed: serializer.fromJson<bool>(json['reviewed']),
     );
   }
   @override
@@ -1468,6 +1491,7 @@ class Entry extends DataClass implements Insertable<Entry> {
       'status': serializer.toJson<String>(status),
       'importRef': serializer.toJson<String?>(importRef),
       'tags': serializer.toJson<String>(tags),
+      'reviewed': serializer.toJson<bool>(reviewed),
     };
   }
 
@@ -1482,6 +1506,7 @@ class Entry extends DataClass implements Insertable<Entry> {
     String? status,
     Value<String?> importRef = const Value.absent(),
     String? tags,
+    bool? reviewed,
   }) => Entry(
     id: id ?? this.id,
     hlc: hlc ?? this.hlc,
@@ -1493,6 +1518,7 @@ class Entry extends DataClass implements Insertable<Entry> {
     status: status ?? this.status,
     importRef: importRef.present ? importRef.value : this.importRef,
     tags: tags ?? this.tags,
+    reviewed: reviewed ?? this.reviewed,
   );
   Entry copyWithCompanion(EntriesCompanion data) {
     return Entry(
@@ -1506,6 +1532,7 @@ class Entry extends DataClass implements Insertable<Entry> {
       status: data.status.present ? data.status.value : this.status,
       importRef: data.importRef.present ? data.importRef.value : this.importRef,
       tags: data.tags.present ? data.tags.value : this.tags,
+      reviewed: data.reviewed.present ? data.reviewed.value : this.reviewed,
     );
   }
 
@@ -1521,13 +1548,15 @@ class Entry extends DataClass implements Insertable<Entry> {
           ..write('memo: $memo, ')
           ..write('status: $status, ')
           ..write('importRef: $importRef, ')
-          ..write('tags: $tags')
+          ..write('tags: $tags, ')
+          ..write('reviewed: $reviewed')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, hlc, deleted, date, currency, payee, memo, status, importRef, tags);
+  int get hashCode =>
+      Object.hash(id, hlc, deleted, date, currency, payee, memo, status, importRef, tags, reviewed);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1541,7 +1570,8 @@ class Entry extends DataClass implements Insertable<Entry> {
           other.memo == this.memo &&
           other.status == this.status &&
           other.importRef == this.importRef &&
-          other.tags == this.tags);
+          other.tags == this.tags &&
+          other.reviewed == this.reviewed);
 }
 
 class EntriesCompanion extends UpdateCompanion<Entry> {
@@ -1555,6 +1585,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
   final Value<String> status;
   final Value<String?> importRef;
   final Value<String> tags;
+  final Value<bool> reviewed;
   final Value<int> rowid;
   const EntriesCompanion({
     this.id = const Value.absent(),
@@ -1567,6 +1598,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     this.status = const Value.absent(),
     this.importRef = const Value.absent(),
     this.tags = const Value.absent(),
+    this.reviewed = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   EntriesCompanion.insert({
@@ -1580,6 +1612,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     this.status = const Value.absent(),
     this.importRef = const Value.absent(),
     this.tags = const Value.absent(),
+    this.reviewed = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        date = Value(date),
@@ -1595,6 +1628,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     Expression<String>? status,
     Expression<String>? importRef,
     Expression<String>? tags,
+    Expression<bool>? reviewed,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1608,6 +1642,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
       if (status != null) 'status': status,
       if (importRef != null) 'import_ref': importRef,
       if (tags != null) 'tags': tags,
+      if (reviewed != null) 'reviewed': reviewed,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1623,6 +1658,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     Value<String>? status,
     Value<String?>? importRef,
     Value<String>? tags,
+    Value<bool>? reviewed,
     Value<int>? rowid,
   }) {
     return EntriesCompanion(
@@ -1636,6 +1672,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
       status: status ?? this.status,
       importRef: importRef ?? this.importRef,
       tags: tags ?? this.tags,
+      reviewed: reviewed ?? this.reviewed,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1673,6 +1710,9 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     if (tags.present) {
       map['tags'] = Variable<String>(tags.value);
     }
+    if (reviewed.present) {
+      map['reviewed'] = Variable<bool>(reviewed.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1692,6 +1732,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
           ..write('status: $status, ')
           ..write('importRef: $importRef, ')
           ..write('tags: $tags, ')
+          ..write('reviewed: $reviewed, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2985,8 +3026,17 @@ class $RulesTable extends Rules with TableInfo<$RulesTable, Rule> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _payeeMeta = const VerificationMeta('payee');
   @override
-  List<GeneratedColumn> get $columns => [id, hlc, deleted, field, pattern, accountId, position];
+  late final GeneratedColumn<String> payee = GeneratedColumn<String>(
+    'payee',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, hlc, deleted, field, pattern, accountId, position, payee];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -3025,6 +3075,9 @@ class $RulesTable extends Rules with TableInfo<$RulesTable, Rule> {
     if (data.containsKey('position')) {
       context.handle(_positionMeta, position.isAcceptableOrUnknown(data['position']!, _positionMeta));
     }
+    if (data.containsKey('payee')) {
+      context.handle(_payeeMeta, payee.isAcceptableOrUnknown(data['payee']!, _payeeMeta));
+    }
     return context;
   }
 
@@ -3044,6 +3097,7 @@ class $RulesTable extends Rules with TableInfo<$RulesTable, Rule> {
         data['${effectivePrefix}account_id'],
       )!,
       position: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}position'])!,
+      payee: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}payee']),
     );
   }
 
@@ -3061,6 +3115,7 @@ class Rule extends DataClass implements Insertable<Rule> {
   final String pattern;
   final String accountId;
   final int position;
+  final String? payee;
   const Rule({
     required this.id,
     required this.hlc,
@@ -3069,6 +3124,7 @@ class Rule extends DataClass implements Insertable<Rule> {
     required this.pattern,
     required this.accountId,
     required this.position,
+    this.payee,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3080,6 +3136,9 @@ class Rule extends DataClass implements Insertable<Rule> {
     map['pattern'] = Variable<String>(pattern);
     map['account_id'] = Variable<String>(accountId);
     map['position'] = Variable<int>(position);
+    if (!nullToAbsent || payee != null) {
+      map['payee'] = Variable<String>(payee);
+    }
     return map;
   }
 
@@ -3092,6 +3151,7 @@ class Rule extends DataClass implements Insertable<Rule> {
       pattern: Value(pattern),
       accountId: Value(accountId),
       position: Value(position),
+      payee: payee == null && nullToAbsent ? const Value.absent() : Value(payee),
     );
   }
 
@@ -3105,6 +3165,7 @@ class Rule extends DataClass implements Insertable<Rule> {
       pattern: serializer.fromJson<String>(json['pattern']),
       accountId: serializer.fromJson<String>(json['accountId']),
       position: serializer.fromJson<int>(json['position']),
+      payee: serializer.fromJson<String?>(json['payee']),
     );
   }
   @override
@@ -3118,6 +3179,7 @@ class Rule extends DataClass implements Insertable<Rule> {
       'pattern': serializer.toJson<String>(pattern),
       'accountId': serializer.toJson<String>(accountId),
       'position': serializer.toJson<int>(position),
+      'payee': serializer.toJson<String?>(payee),
     };
   }
 
@@ -3129,6 +3191,7 @@ class Rule extends DataClass implements Insertable<Rule> {
     String? pattern,
     String? accountId,
     int? position,
+    Value<String?> payee = const Value.absent(),
   }) => Rule(
     id: id ?? this.id,
     hlc: hlc ?? this.hlc,
@@ -3137,6 +3200,7 @@ class Rule extends DataClass implements Insertable<Rule> {
     pattern: pattern ?? this.pattern,
     accountId: accountId ?? this.accountId,
     position: position ?? this.position,
+    payee: payee.present ? payee.value : this.payee,
   );
   Rule copyWithCompanion(RulesCompanion data) {
     return Rule(
@@ -3147,6 +3211,7 @@ class Rule extends DataClass implements Insertable<Rule> {
       pattern: data.pattern.present ? data.pattern.value : this.pattern,
       accountId: data.accountId.present ? data.accountId.value : this.accountId,
       position: data.position.present ? data.position.value : this.position,
+      payee: data.payee.present ? data.payee.value : this.payee,
     );
   }
 
@@ -3159,13 +3224,14 @@ class Rule extends DataClass implements Insertable<Rule> {
           ..write('field: $field, ')
           ..write('pattern: $pattern, ')
           ..write('accountId: $accountId, ')
-          ..write('position: $position')
+          ..write('position: $position, ')
+          ..write('payee: $payee')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, hlc, deleted, field, pattern, accountId, position);
+  int get hashCode => Object.hash(id, hlc, deleted, field, pattern, accountId, position, payee);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3176,7 +3242,8 @@ class Rule extends DataClass implements Insertable<Rule> {
           other.field == this.field &&
           other.pattern == this.pattern &&
           other.accountId == this.accountId &&
-          other.position == this.position);
+          other.position == this.position &&
+          other.payee == this.payee);
 }
 
 class RulesCompanion extends UpdateCompanion<Rule> {
@@ -3187,6 +3254,7 @@ class RulesCompanion extends UpdateCompanion<Rule> {
   final Value<String> pattern;
   final Value<String> accountId;
   final Value<int> position;
+  final Value<String?> payee;
   final Value<int> rowid;
   const RulesCompanion({
     this.id = const Value.absent(),
@@ -3196,6 +3264,7 @@ class RulesCompanion extends UpdateCompanion<Rule> {
     this.pattern = const Value.absent(),
     this.accountId = const Value.absent(),
     this.position = const Value.absent(),
+    this.payee = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   RulesCompanion.insert({
@@ -3206,6 +3275,7 @@ class RulesCompanion extends UpdateCompanion<Rule> {
     required String pattern,
     required String accountId,
     this.position = const Value.absent(),
+    this.payee = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        field = Value(field),
@@ -3219,6 +3289,7 @@ class RulesCompanion extends UpdateCompanion<Rule> {
     Expression<String>? pattern,
     Expression<String>? accountId,
     Expression<int>? position,
+    Expression<String>? payee,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3229,6 +3300,7 @@ class RulesCompanion extends UpdateCompanion<Rule> {
       if (pattern != null) 'pattern': pattern,
       if (accountId != null) 'account_id': accountId,
       if (position != null) 'position': position,
+      if (payee != null) 'payee': payee,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3241,6 +3313,7 @@ class RulesCompanion extends UpdateCompanion<Rule> {
     Value<String>? pattern,
     Value<String>? accountId,
     Value<int>? position,
+    Value<String?>? payee,
     Value<int>? rowid,
   }) {
     return RulesCompanion(
@@ -3251,6 +3324,7 @@ class RulesCompanion extends UpdateCompanion<Rule> {
       pattern: pattern ?? this.pattern,
       accountId: accountId ?? this.accountId,
       position: position ?? this.position,
+      payee: payee ?? this.payee,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3279,6 +3353,9 @@ class RulesCompanion extends UpdateCompanion<Rule> {
     if (position.present) {
       map['position'] = Variable<int>(position.value);
     }
+    if (payee.present) {
+      map['payee'] = Variable<String>(payee.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3295,6 +3372,537 @@ class RulesCompanion extends UpdateCompanion<Rule> {
           ..write('pattern: $pattern, ')
           ..write('accountId: $accountId, ')
           ..write('position: $position, ')
+          ..write('payee: $payee, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $RecurringsTable extends Recurrings with TableInfo<$RecurringsTable, RecurringRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RecurringsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _hlcMeta = const VerificationMeta('hlc');
+  @override
+  late final GeneratedColumn<String> hlc = GeneratedColumn<String>(
+    'hlc',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta('deleted');
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('CHECK ("deleted" IN (0, 1))'),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  @override
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+    'label',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _patternMeta = const VerificationMeta('pattern');
+  @override
+  late final GeneratedColumn<String> pattern = GeneratedColumn<String>(
+    'pattern',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<int> amount = GeneratedColumn<int>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cadenceMeta = const VerificationMeta('cadence');
+  @override
+  late final GeneratedColumn<String> cadence = GeneratedColumn<String>(
+    'cadence',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _anchorDateMeta = const VerificationMeta('anchorDate');
+  @override
+  late final GeneratedColumn<String> anchorDate = GeneratedColumn<String>(
+    'anchor_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta('categoryId');
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+    'category_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _dismissedMeta = const VerificationMeta('dismissed');
+  @override
+  late final GeneratedColumn<bool> dismissed = GeneratedColumn<bool>(
+    'dismissed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('CHECK ("dismissed" IN (0, 1))'),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    hlc,
+    deleted,
+    label,
+    pattern,
+    amount,
+    cadence,
+    anchorDate,
+    categoryId,
+    dismissed,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'recurrings';
+  @override
+  VerificationContext validateIntegrity(Insertable<RecurringRow> instance, {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('hlc')) {
+      context.handle(_hlcMeta, hlc.isAcceptableOrUnknown(data['hlc']!, _hlcMeta));
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(_deletedMeta, deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta));
+    }
+    if (data.containsKey('label')) {
+      context.handle(_labelMeta, label.isAcceptableOrUnknown(data['label']!, _labelMeta));
+    } else if (isInserting) {
+      context.missing(_labelMeta);
+    }
+    if (data.containsKey('pattern')) {
+      context.handle(_patternMeta, pattern.isAcceptableOrUnknown(data['pattern']!, _patternMeta));
+    } else if (isInserting) {
+      context.missing(_patternMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(_amountMeta, amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('cadence')) {
+      context.handle(_cadenceMeta, cadence.isAcceptableOrUnknown(data['cadence']!, _cadenceMeta));
+    } else if (isInserting) {
+      context.missing(_cadenceMeta);
+    }
+    if (data.containsKey('anchor_date')) {
+      context.handle(
+        _anchorDateMeta,
+        anchorDate.isAcceptableOrUnknown(data['anchor_date']!, _anchorDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_anchorDateMeta);
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    }
+    if (data.containsKey('dismissed')) {
+      context.handle(_dismissedMeta, dismissed.isAcceptableOrUnknown(data['dismissed']!, _dismissedMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RecurringRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RecurringRow(
+      id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      hlc: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}hlc'])!,
+      deleted: attachedDatabase.typeMapping.read(DriftSqlType.bool, data['${effectivePrefix}deleted'])!,
+      label: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}label'])!,
+      pattern: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}pattern'])!,
+      amount: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}amount'])!,
+      cadence: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}cadence'])!,
+      anchorDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}anchor_date'],
+      )!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_id'],
+      )!,
+      dismissed: attachedDatabase.typeMapping.read(DriftSqlType.bool, data['${effectivePrefix}dismissed'])!,
+    );
+  }
+
+  @override
+  $RecurringsTable createAlias(String alias) {
+    return $RecurringsTable(attachedDatabase, alias);
+  }
+}
+
+class RecurringRow extends DataClass implements Insertable<RecurringRow> {
+  final String id;
+  final String hlc;
+  final bool deleted;
+  final String label;
+
+  /// Text that recognises its payments in the ledger (any case).
+  final String pattern;
+
+  /// Minor units of the base currency; negative for money out.
+  final int amount;
+
+  /// weekly | monthly | quarterly | yearly
+  final String cadence;
+
+  /// A day it is (or was) paid; the schedule steps from here.
+  final String anchorDate;
+  final String categoryId;
+  final bool dismissed;
+  const RecurringRow({
+    required this.id,
+    required this.hlc,
+    required this.deleted,
+    required this.label,
+    required this.pattern,
+    required this.amount,
+    required this.cadence,
+    required this.anchorDate,
+    required this.categoryId,
+    required this.dismissed,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['hlc'] = Variable<String>(hlc);
+    map['deleted'] = Variable<bool>(deleted);
+    map['label'] = Variable<String>(label);
+    map['pattern'] = Variable<String>(pattern);
+    map['amount'] = Variable<int>(amount);
+    map['cadence'] = Variable<String>(cadence);
+    map['anchor_date'] = Variable<String>(anchorDate);
+    map['category_id'] = Variable<String>(categoryId);
+    map['dismissed'] = Variable<bool>(dismissed);
+    return map;
+  }
+
+  RecurringsCompanion toCompanion(bool nullToAbsent) {
+    return RecurringsCompanion(
+      id: Value(id),
+      hlc: Value(hlc),
+      deleted: Value(deleted),
+      label: Value(label),
+      pattern: Value(pattern),
+      amount: Value(amount),
+      cadence: Value(cadence),
+      anchorDate: Value(anchorDate),
+      categoryId: Value(categoryId),
+      dismissed: Value(dismissed),
+    );
+  }
+
+  factory RecurringRow.fromJson(Map<String, dynamic> json, {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RecurringRow(
+      id: serializer.fromJson<String>(json['id']),
+      hlc: serializer.fromJson<String>(json['hlc']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      label: serializer.fromJson<String>(json['label']),
+      pattern: serializer.fromJson<String>(json['pattern']),
+      amount: serializer.fromJson<int>(json['amount']),
+      cadence: serializer.fromJson<String>(json['cadence']),
+      anchorDate: serializer.fromJson<String>(json['anchorDate']),
+      categoryId: serializer.fromJson<String>(json['categoryId']),
+      dismissed: serializer.fromJson<bool>(json['dismissed']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'hlc': serializer.toJson<String>(hlc),
+      'deleted': serializer.toJson<bool>(deleted),
+      'label': serializer.toJson<String>(label),
+      'pattern': serializer.toJson<String>(pattern),
+      'amount': serializer.toJson<int>(amount),
+      'cadence': serializer.toJson<String>(cadence),
+      'anchorDate': serializer.toJson<String>(anchorDate),
+      'categoryId': serializer.toJson<String>(categoryId),
+      'dismissed': serializer.toJson<bool>(dismissed),
+    };
+  }
+
+  RecurringRow copyWith({
+    String? id,
+    String? hlc,
+    bool? deleted,
+    String? label,
+    String? pattern,
+    int? amount,
+    String? cadence,
+    String? anchorDate,
+    String? categoryId,
+    bool? dismissed,
+  }) => RecurringRow(
+    id: id ?? this.id,
+    hlc: hlc ?? this.hlc,
+    deleted: deleted ?? this.deleted,
+    label: label ?? this.label,
+    pattern: pattern ?? this.pattern,
+    amount: amount ?? this.amount,
+    cadence: cadence ?? this.cadence,
+    anchorDate: anchorDate ?? this.anchorDate,
+    categoryId: categoryId ?? this.categoryId,
+    dismissed: dismissed ?? this.dismissed,
+  );
+  RecurringRow copyWithCompanion(RecurringsCompanion data) {
+    return RecurringRow(
+      id: data.id.present ? data.id.value : this.id,
+      hlc: data.hlc.present ? data.hlc.value : this.hlc,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      label: data.label.present ? data.label.value : this.label,
+      pattern: data.pattern.present ? data.pattern.value : this.pattern,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      cadence: data.cadence.present ? data.cadence.value : this.cadence,
+      anchorDate: data.anchorDate.present ? data.anchorDate.value : this.anchorDate,
+      categoryId: data.categoryId.present ? data.categoryId.value : this.categoryId,
+      dismissed: data.dismissed.present ? data.dismissed.value : this.dismissed,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecurringRow(')
+          ..write('id: $id, ')
+          ..write('hlc: $hlc, ')
+          ..write('deleted: $deleted, ')
+          ..write('label: $label, ')
+          ..write('pattern: $pattern, ')
+          ..write('amount: $amount, ')
+          ..write('cadence: $cadence, ')
+          ..write('anchorDate: $anchorDate, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('dismissed: $dismissed')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, hlc, deleted, label, pattern, amount, cadence, anchorDate, categoryId, dismissed);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RecurringRow &&
+          other.id == this.id &&
+          other.hlc == this.hlc &&
+          other.deleted == this.deleted &&
+          other.label == this.label &&
+          other.pattern == this.pattern &&
+          other.amount == this.amount &&
+          other.cadence == this.cadence &&
+          other.anchorDate == this.anchorDate &&
+          other.categoryId == this.categoryId &&
+          other.dismissed == this.dismissed);
+}
+
+class RecurringsCompanion extends UpdateCompanion<RecurringRow> {
+  final Value<String> id;
+  final Value<String> hlc;
+  final Value<bool> deleted;
+  final Value<String> label;
+  final Value<String> pattern;
+  final Value<int> amount;
+  final Value<String> cadence;
+  final Value<String> anchorDate;
+  final Value<String> categoryId;
+  final Value<bool> dismissed;
+  final Value<int> rowid;
+  const RecurringsCompanion({
+    this.id = const Value.absent(),
+    this.hlc = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.label = const Value.absent(),
+    this.pattern = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.cadence = const Value.absent(),
+    this.anchorDate = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.dismissed = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RecurringsCompanion.insert({
+    required String id,
+    this.hlc = const Value.absent(),
+    this.deleted = const Value.absent(),
+    required String label,
+    required String pattern,
+    required int amount,
+    required String cadence,
+    required String anchorDate,
+    this.categoryId = const Value.absent(),
+    this.dismissed = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       label = Value(label),
+       pattern = Value(pattern),
+       amount = Value(amount),
+       cadence = Value(cadence),
+       anchorDate = Value(anchorDate);
+  static Insertable<RecurringRow> custom({
+    Expression<String>? id,
+    Expression<String>? hlc,
+    Expression<bool>? deleted,
+    Expression<String>? label,
+    Expression<String>? pattern,
+    Expression<int>? amount,
+    Expression<String>? cadence,
+    Expression<String>? anchorDate,
+    Expression<String>? categoryId,
+    Expression<bool>? dismissed,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (hlc != null) 'hlc': hlc,
+      if (deleted != null) 'deleted': deleted,
+      if (label != null) 'label': label,
+      if (pattern != null) 'pattern': pattern,
+      if (amount != null) 'amount': amount,
+      if (cadence != null) 'cadence': cadence,
+      if (anchorDate != null) 'anchor_date': anchorDate,
+      if (categoryId != null) 'category_id': categoryId,
+      if (dismissed != null) 'dismissed': dismissed,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RecurringsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? hlc,
+    Value<bool>? deleted,
+    Value<String>? label,
+    Value<String>? pattern,
+    Value<int>? amount,
+    Value<String>? cadence,
+    Value<String>? anchorDate,
+    Value<String>? categoryId,
+    Value<bool>? dismissed,
+    Value<int>? rowid,
+  }) {
+    return RecurringsCompanion(
+      id: id ?? this.id,
+      hlc: hlc ?? this.hlc,
+      deleted: deleted ?? this.deleted,
+      label: label ?? this.label,
+      pattern: pattern ?? this.pattern,
+      amount: amount ?? this.amount,
+      cadence: cadence ?? this.cadence,
+      anchorDate: anchorDate ?? this.anchorDate,
+      categoryId: categoryId ?? this.categoryId,
+      dismissed: dismissed ?? this.dismissed,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (hlc.present) {
+      map['hlc'] = Variable<String>(hlc.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
+    }
+    if (pattern.present) {
+      map['pattern'] = Variable<String>(pattern.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<int>(amount.value);
+    }
+    if (cadence.present) {
+      map['cadence'] = Variable<String>(cadence.value);
+    }
+    if (anchorDate.present) {
+      map['anchor_date'] = Variable<String>(anchorDate.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (dismissed.present) {
+      map['dismissed'] = Variable<bool>(dismissed.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecurringsCompanion(')
+          ..write('id: $id, ')
+          ..write('hlc: $hlc, ')
+          ..write('deleted: $deleted, ')
+          ..write('label: $label, ')
+          ..write('pattern: $pattern, ')
+          ..write('amount: $amount, ')
+          ..write('cadence: $cadence, ')
+          ..write('anchorDate: $anchorDate, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('dismissed: $dismissed, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5550,6 +6158,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PricesTable prices = $PricesTable(this);
   late final $BalanceChecksTable balanceChecks = $BalanceChecksTable(this);
   late final $RulesTable rules = $RulesTable(this);
+  late final $RecurringsTable recurrings = $RecurringsTable(this);
   late final $BudgetsTable budgets = $BudgetsTable(this);
   late final $TargetsTable targets = $TargetsTable(this);
   late final $FactsTable facts = $FactsTable(this);
@@ -5570,6 +6179,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     prices,
     balanceChecks,
     rules,
+    recurrings,
     budgets,
     targets,
     facts,
@@ -6122,6 +6732,7 @@ typedef $$EntriesTableCreateCompanionBuilder = EntriesCompanion Function({
   Value<String> status,
   Value<String?> importRef,
   Value<String> tags,
+  Value<bool> reviewed,
   Value<int> rowid,
 });
 typedef $$EntriesTableUpdateCompanionBuilder = EntriesCompanion Function({
@@ -6135,6 +6746,7 @@ typedef $$EntriesTableUpdateCompanionBuilder = EntriesCompanion Function({
   Value<String> status,
   Value<String?> importRef,
   Value<String> tags,
+  Value<bool> reviewed,
   Value<int> rowid,
 });
 
@@ -6193,6 +6805,9 @@ class $$EntriesTableFilterComposer extends Composer<_$AppDatabase, $EntriesTable
   ColumnFilters<String> get tags =>
       $composableBuilder(column: $table.tags, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<bool> get reviewed =>
+      $composableBuilder(column: $table.reviewed, builder: (column) => ColumnFilters(column));
+
   Expression<bool> postingsRefs(Expression<bool> Function($$PostingsTableFilterComposer f) f) {
     final $$PostingsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -6249,6 +6864,9 @@ class $$EntriesTableOrderingComposer extends Composer<_$AppDatabase, $EntriesTab
 
   ColumnOrderings<String> get tags =>
       $composableBuilder(column: $table.tags, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get reviewed =>
+      $composableBuilder(column: $table.reviewed, builder: (column) => ColumnOrderings(column));
 }
 
 class $$EntriesTableAnnotationComposer extends Composer<_$AppDatabase, $EntriesTable> {
@@ -6282,6 +6900,9 @@ class $$EntriesTableAnnotationComposer extends Composer<_$AppDatabase, $EntriesT
       $composableBuilder(column: $table.importRef, builder: (column) => column);
 
   GeneratedColumn<String> get tags => $composableBuilder(column: $table.tags, builder: (column) => column);
+
+  GeneratedColumn<bool> get reviewed =>
+      $composableBuilder(column: $table.reviewed, builder: (column) => column);
 
   Expression<T> postingsRefs<T extends Object>(
     Expression<T> Function($$PostingsTableAnnotationComposer a) f,
@@ -6339,6 +6960,7 @@ class $$EntriesTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<String?> importRef = const Value.absent(),
                 Value<String> tags = const Value.absent(),
+                Value<bool> reviewed = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EntriesCompanion(
                 id: id,
@@ -6351,6 +6973,7 @@ class $$EntriesTableTableManager
                 status: status,
                 importRef: importRef,
                 tags: tags,
+                reviewed: reviewed,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6365,6 +6988,7 @@ class $$EntriesTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<String?> importRef = const Value.absent(),
                 Value<String> tags = const Value.absent(),
+                Value<bool> reviewed = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EntriesCompanion.insert(
                 id: id,
@@ -6377,6 +7001,7 @@ class $$EntriesTableTableManager
                 status: status,
                 importRef: importRef,
                 tags: tags,
+                reviewed: reviewed,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -7125,6 +7750,7 @@ typedef $$RulesTableCreateCompanionBuilder = RulesCompanion Function({
   required String pattern,
   required String accountId,
   Value<int> position,
+  Value<String?> payee,
   Value<int> rowid,
 });
 typedef $$RulesTableUpdateCompanionBuilder = RulesCompanion Function({
@@ -7135,6 +7761,7 @@ typedef $$RulesTableUpdateCompanionBuilder = RulesCompanion Function({
   Value<String> pattern,
   Value<String> accountId,
   Value<int> position,
+  Value<String?> payee,
   Value<int> rowid,
 });
 
@@ -7166,6 +7793,9 @@ class $$RulesTableFilterComposer extends Composer<_$AppDatabase, $RulesTable> {
 
   ColumnFilters<int> get position =>
       $composableBuilder(column: $table.position, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get payee =>
+      $composableBuilder(column: $table.payee, builder: (column) => ColumnFilters(column));
 }
 
 class $$RulesTableOrderingComposer extends Composer<_$AppDatabase, $RulesTable> {
@@ -7196,6 +7826,9 @@ class $$RulesTableOrderingComposer extends Composer<_$AppDatabase, $RulesTable> 
 
   ColumnOrderings<int> get position =>
       $composableBuilder(column: $table.position, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get payee =>
+      $composableBuilder(column: $table.payee, builder: (column) => ColumnOrderings(column));
 }
 
 class $$RulesTableAnnotationComposer extends Composer<_$AppDatabase, $RulesTable> {
@@ -7223,6 +7856,8 @@ class $$RulesTableAnnotationComposer extends Composer<_$AppDatabase, $RulesTable
 
   GeneratedColumn<int> get position =>
       $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<String> get payee => $composableBuilder(column: $table.payee, builder: (column) => column);
 }
 
 class $$RulesTableTableManager
@@ -7257,6 +7892,7 @@ class $$RulesTableTableManager
                 Value<String> pattern = const Value.absent(),
                 Value<String> accountId = const Value.absent(),
                 Value<int> position = const Value.absent(),
+                Value<String?> payee = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RulesCompanion(
                 id: id,
@@ -7266,6 +7902,7 @@ class $$RulesTableTableManager
                 pattern: pattern,
                 accountId: accountId,
                 position: position,
+                payee: payee,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7277,6 +7914,7 @@ class $$RulesTableTableManager
                 required String pattern,
                 required String accountId,
                 Value<int> position = const Value.absent(),
+                Value<String?> payee = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RulesCompanion.insert(
                 id: id,
@@ -7286,6 +7924,7 @@ class $$RulesTableTableManager
                 pattern: pattern,
                 accountId: accountId,
                 position: position,
+                payee: payee,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -7313,6 +7952,248 @@ typedef $$RulesTableProcessedTableManager =
       $$RulesTableUpdateCompanionBuilder,
       (Rule, BaseReferences<_$AppDatabase, $RulesTable, Rule>),
       Rule,
+      PrefetchHooks Function()
+    >;
+typedef $$RecurringsTableCreateCompanionBuilder = RecurringsCompanion Function({
+  required String id,
+  Value<String> hlc,
+  Value<bool> deleted,
+  required String label,
+  required String pattern,
+  required int amount,
+  required String cadence,
+  required String anchorDate,
+  Value<String> categoryId,
+  Value<bool> dismissed,
+  Value<int> rowid,
+});
+typedef $$RecurringsTableUpdateCompanionBuilder = RecurringsCompanion Function({
+  Value<String> id,
+  Value<String> hlc,
+  Value<bool> deleted,
+  Value<String> label,
+  Value<String> pattern,
+  Value<int> amount,
+  Value<String> cadence,
+  Value<String> anchorDate,
+  Value<String> categoryId,
+  Value<bool> dismissed,
+  Value<int> rowid,
+});
+
+class $$RecurringsTableFilterComposer extends Composer<_$AppDatabase, $RecurringsTable> {
+  $$RecurringsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get hlc =>
+      $composableBuilder(column: $table.hlc, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get pattern =>
+      $composableBuilder(column: $table.pattern, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get cadence =>
+      $composableBuilder(column: $table.cadence, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get anchorDate =>
+      $composableBuilder(column: $table.anchorDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get categoryId =>
+      $composableBuilder(column: $table.categoryId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get dismissed =>
+      $composableBuilder(column: $table.dismissed, builder: (column) => ColumnFilters(column));
+}
+
+class $$RecurringsTableOrderingComposer extends Composer<_$AppDatabase, $RecurringsTable> {
+  $$RecurringsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get hlc =>
+      $composableBuilder(column: $table.hlc, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get pattern =>
+      $composableBuilder(column: $table.pattern, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get cadence =>
+      $composableBuilder(column: $table.cadence, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get anchorDate =>
+      $composableBuilder(column: $table.anchorDate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get categoryId =>
+      $composableBuilder(column: $table.categoryId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get dismissed =>
+      $composableBuilder(column: $table.dismissed, builder: (column) => ColumnOrderings(column));
+}
+
+class $$RecurringsTableAnnotationComposer extends Composer<_$AppDatabase, $RecurringsTable> {
+  $$RecurringsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id => $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get hlc => $composableBuilder(column: $table.hlc, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<String> get label => $composableBuilder(column: $table.label, builder: (column) => column);
+
+  GeneratedColumn<String> get pattern =>
+      $composableBuilder(column: $table.pattern, builder: (column) => column);
+
+  GeneratedColumn<int> get amount => $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get cadence =>
+      $composableBuilder(column: $table.cadence, builder: (column) => column);
+
+  GeneratedColumn<String> get anchorDate =>
+      $composableBuilder(column: $table.anchorDate, builder: (column) => column);
+
+  GeneratedColumn<String> get categoryId =>
+      $composableBuilder(column: $table.categoryId, builder: (column) => column);
+
+  GeneratedColumn<bool> get dismissed =>
+      $composableBuilder(column: $table.dismissed, builder: (column) => column);
+}
+
+class $$RecurringsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RecurringsTable,
+          RecurringRow,
+          $$RecurringsTableFilterComposer,
+          $$RecurringsTableOrderingComposer,
+          $$RecurringsTableAnnotationComposer,
+          $$RecurringsTableCreateCompanionBuilder,
+          $$RecurringsTableUpdateCompanionBuilder,
+          (RecurringRow, BaseReferences<_$AppDatabase, $RecurringsTable, RecurringRow>),
+          RecurringRow,
+          PrefetchHooks Function()
+        > {
+  $$RecurringsTableTableManager(_$AppDatabase db, $RecurringsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () => $$RecurringsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () => $$RecurringsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () => $$RecurringsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> hlc = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<String> label = const Value.absent(),
+                Value<String> pattern = const Value.absent(),
+                Value<int> amount = const Value.absent(),
+                Value<String> cadence = const Value.absent(),
+                Value<String> anchorDate = const Value.absent(),
+                Value<String> categoryId = const Value.absent(),
+                Value<bool> dismissed = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RecurringsCompanion(
+                id: id,
+                hlc: hlc,
+                deleted: deleted,
+                label: label,
+                pattern: pattern,
+                amount: amount,
+                cadence: cadence,
+                anchorDate: anchorDate,
+                categoryId: categoryId,
+                dismissed: dismissed,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String> hlc = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                required String label,
+                required String pattern,
+                required int amount,
+                required String cadence,
+                required String anchorDate,
+                Value<String> categoryId = const Value.absent(),
+                Value<bool> dismissed = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RecurringsCompanion.insert(
+                id: id,
+                hlc: hlc,
+                deleted: deleted,
+                label: label,
+                pattern: pattern,
+                amount: amount,
+                cadence: cadence,
+                anchorDate: anchorDate,
+                categoryId: categoryId,
+                dismissed: dismissed,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$RecurringsTable, RecurringRow>(table),
+                  BaseReferences<_$AppDatabase, $RecurringsTable, RecurringRow>(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RecurringsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RecurringsTable,
+      RecurringRow,
+      $$RecurringsTableFilterComposer,
+      $$RecurringsTableOrderingComposer,
+      $$RecurringsTableAnnotationComposer,
+      $$RecurringsTableCreateCompanionBuilder,
+      $$RecurringsTableUpdateCompanionBuilder,
+      (RecurringRow, BaseReferences<_$AppDatabase, $RecurringsTable, RecurringRow>),
+      RecurringRow,
       PrefetchHooks Function()
     >;
 typedef $$BudgetsTableCreateCompanionBuilder = BudgetsCompanion Function({
@@ -8552,6 +9433,7 @@ class $AppDatabaseManager {
   $$BalanceChecksTableTableManager get balanceChecks =>
       $$BalanceChecksTableTableManager(_db, _db.balanceChecks);
   $$RulesTableTableManager get rules => $$RulesTableTableManager(_db, _db.rules);
+  $$RecurringsTableTableManager get recurrings => $$RecurringsTableTableManager(_db, _db.recurrings);
   $$BudgetsTableTableManager get budgets => $$BudgetsTableTableManager(_db, _db.budgets);
   $$TargetsTableTableManager get targets => $$TargetsTableTableManager(_db, _db.targets);
   $$FactsTableTableManager get facts => $$FactsTableTableManager(_db, _db.facts);

@@ -98,6 +98,7 @@ class EntryInput {
     this.status = 'cleared',
     this.importRef,
     this.tags = const [],
+    this.reviewed,
   });
 
   final String? id;
@@ -111,6 +112,10 @@ class EntryInput {
   final String status;
   final String? importRef;
   final List<String> tags;
+
+  /// False puts the entry in the review queue, true takes it out; null keeps
+  /// an existing entry's flag (new entries count as reviewed).
+  final bool? reviewed;
 }
 
 /// What validation needs to know about an account.

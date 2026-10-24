@@ -140,11 +140,7 @@ final insightsProvider = FutureProvider<InsightsData>((ref) async {
   );
   final kb = KnowledgeBase(s.ledger);
   await kb.apply(await engine.generate());
-  return InsightsData(
-    await engine.metrics(),
-    await kb.ranked(),
-    detectRecurring(await engine.transactions(), day),
-  );
+  return InsightsData(await engine.metrics(), await kb.ranked(), await engine.recurring());
 });
 
 class DashboardData {
@@ -178,6 +174,21 @@ final dashboardProvider = FutureProvider<DashboardData>((ref) async {
   );
 });
 
+typedef EntryFilter = ({String query, String? accountId, bool review});
+
+/// How many entries wait in the review queue.
+final reviewCountProvider = FutureProvider<int>((ref) async {
+  ref.watch(revisionProvider);
+  final db = ref.watch(sessionProvider).db;
+  final row = await db
+      .customSelect(
+        'SELECT COUNT(*) AS n FROM entries WHERE deleted = 0 AND reviewed = 0',
+        readsFrom: {db.entries},
+      )
+      .getSingle();
+  return row.read<int>('n');
+});
+
 /// One journal entry with its postings, for lists and the editor.
 class EntryView {
   EntryView(this.entry, this.postings);
@@ -185,11 +196,9 @@ class EntryView {
   final List<Posting> postings;
 }
 
-/// Latest entries, newest first, optionally narrowed by text or account.
-final entriesProvider = FutureProvider.family<List<EntryView>, ({String query, String? accountId})>((
-  ref,
-  filter,
-) async {
+/// Latest entries, newest first, optionally narrowed by text, account or to
+/// the ones waiting for review.
+final entriesProvider = FutureProvider.family<List<EntryView>, EntryFilter>((ref, filter) async {
   ref.watch(revisionProvider);
   final db = ref.watch(sessionProvider).db;
   final q = filter.query.trim().toLowerCase();
@@ -198,6 +207,7 @@ final entriesProvider = FutureProvider.family<List<EntryView>, ({String query, S
         'SELECT * FROM entries e WHERE e.deleted = 0 '
         "${q.isEmpty ? '' : "AND (lower(e.payee) LIKE ? ESCAPE '\\' OR lower(e.memo) LIKE ? ESCAPE '\\') "}"
         '${filter.accountId == null ? '' : 'AND EXISTS (SELECT 1 FROM postings p WHERE p.entry_id = e.id AND p.account_id = ?) '}'
+        '${filter.review ? 'AND e.reviewed = 0 ' : ''}'
         'ORDER BY e.date DESC, e.rowid DESC LIMIT 500',
         variables: [
           if (q.isNotEmpty) ...[
@@ -258,4 +268,10 @@ final budgetsProvider = FutureProvider<List<BudgetLine>>((ref) async {
 final rulesProvider = FutureProvider<List<Rule>>((ref) {
   ref.watch(revisionProvider);
   return ref.watch(sessionProvider).ledger.rules();
+});
+
+/// Recurring items the user added and the detected ones they hid.
+final recurringRowsProvider = FutureProvider<List<RecurringRow>>((ref) {
+  ref.watch(revisionProvider);
+  return ref.watch(sessionProvider).ledger.recurrings();
 });

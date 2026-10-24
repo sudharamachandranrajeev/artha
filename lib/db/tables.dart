@@ -61,6 +61,9 @@ class Entries extends Table with SyncedRow {
 
   /// JSON array of tag strings.
   TextColumn get tags => text().withDefault(const Constant('[]'))();
+
+  /// False for imported entries nobody has looked at yet (the review queue).
+  BoolColumn get reviewed => boolean().withDefault(const Constant(true))();
 }
 
 /// One leg of an entry. `amount` is in the account's commodity units; `value`
@@ -103,13 +106,36 @@ class BalanceChecks extends Table with SyncedRow {
   TextColumn get note => text().withDefault(const Constant(''))();
 }
 
-/// User categorisation rules: when [field] contains [pattern], use [accountId].
+/// User rules: when [field] contains [pattern], file into [accountId] (empty
+/// for none) and show the payee as [payee] (null keeps the bank's text).
 @DataClassName('Rule')
 class Rules extends Table with SyncedRow {
   TextColumn get field => text()();
   TextColumn get pattern => text()();
   TextColumn get accountId => text()();
   IntColumn get position => integer().withDefault(const Constant(0))();
+  TextColumn get payee => text().nullable()();
+}
+
+/// Recurring payments the user added or edited, and detected ones they
+/// hid ([dismissed], keyed by the detection key).
+@DataClassName('RecurringRow')
+class Recurrings extends Table with SyncedRow {
+  TextColumn get label => text()();
+
+  /// Text that recognises its payments in the ledger (any case).
+  TextColumn get pattern => text()();
+
+  /// Minor units of the base currency; negative for money out.
+  IntColumn get amount => integer()();
+
+  /// weekly | monthly | quarterly | yearly
+  TextColumn get cadence => text()();
+
+  /// A day it is (or was) paid; the schedule steps from here.
+  TextColumn get anchorDate => text()();
+  TextColumn get categoryId => text().withDefault(const Constant(''))();
+  BoolColumn get dismissed => boolean().withDefault(const Constant(false))();
 }
 
 /// Monthly budget for an expense category, in the base currency.

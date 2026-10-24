@@ -16,6 +16,7 @@ part 'database.g.dart';
     Prices,
     BalanceChecks,
     Rules,
+    Recurrings,
     Budgets,
     Targets,
     Facts,
@@ -40,6 +41,7 @@ class AppDatabase extends _$AppDatabase with SyncedDatabase {
     'prices',
     'balance_checks',
     'rules',
+    'recurrings',
     'budgets',
     'targets',
     'facts',
@@ -54,7 +56,7 @@ class AppDatabase extends _$AppDatabase with SyncedDatabase {
   };
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -62,6 +64,13 @@ class AppDatabase extends _$AppDatabase with SyncedDatabase {
       await m.createAll();
       for (final sql in _indexes) {
         await customStatement(sql);
+      }
+    },
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(entries, entries.reviewed);
+        await m.addColumn(rules, rules.payee);
+        await m.createTable(recurrings);
       }
     },
     beforeOpen: (details) async {

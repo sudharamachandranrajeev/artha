@@ -7,9 +7,9 @@ import '../../../db/database.dart';
 import '../domain/ledger.dart';
 import 'common.dart';
 
-/// Categorisation rules: text to look for and the category it files into.
-/// Imports try them first, in order; they can also sort what is already
-/// uncategorised.
+/// Rules: text to look for, the category it files into and/or the payee name
+/// it shows as. Imports try them first, in order; they can also sort and
+/// rename what is already recorded.
 class RulesPage extends ConsumerWidget {
   const RulesPage({super.key});
 
@@ -17,11 +17,11 @@ class RulesPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final accounts = {for (final a in ref.watch(accountsProvider).value ?? const <Account>[]) a.id: a};
     return PageScaffold(
-      title: 'Categorisation rules',
+      title: 'Rules',
       banner: 'page.rules',
       actions: [
         IconButton(
-          tooltip: 'Sort uncategorised entries with these rules',
+          tooltip: 'Apply these rules to recorded entries',
           icon: const Icon(Icons.auto_fix_high_outlined),
           onPressed: () => _apply(context, ref),
         ),
@@ -57,7 +57,12 @@ class RulesPage extends ConsumerWidget {
                       for (final (i, r) in rules.indexed)
                         ListTile(
                           title: Text('“${r.pattern}”'),
-                          subtitle: Text(accounts[r.accountId]?.name ?? 'Missing category'),
+                          subtitle: Text(
+                            [
+                              if (r.payee != null) 'Shows as ${r.payee}',
+                              if (r.accountId.isNotEmpty) accounts[r.accountId]?.name ?? 'Missing category',
+                            ].join(' · '),
+                          ),
                           onTap: () => editRule(context, ref, rule: r),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -106,8 +111,8 @@ class RulesPage extends ConsumerWidget {
       showMessage(
         context,
         changed == 0
-            ? 'No uncategorised entries match a rule'
-            : 'Sorted $changed ${changed == 1 ? 'entry' : 'entries'} into categories',
+            ? 'Nothing recorded needed changing'
+            : 'Updated $changed ${changed == 1 ? 'entry' : 'entries'}',
       );
     }
   }
@@ -128,7 +133,8 @@ Future<bool> editRule(
           .toList()
         ..sort((a, b) => a.kind == b.kind ? a.name.compareTo(b.name) : a.kind.compareTo(b.kind));
   final text = TextEditingController(text: rule?.pattern ?? pattern ?? '');
-  var category = rule?.accountId ?? accountId;
+  final payee = TextEditingController(text: rule?.payee ?? '');
+  String? category = rule == null ? accountId : (rule.accountId.isEmpty ? null : rule.accountId);
   final form = GlobalKey<FormState>();
   final ok = await showDialog<bool>(
     context: context,
@@ -155,6 +161,7 @@ Future<bool> editRule(
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'File it under'),
                 items: [
+                  const DropdownMenuItem(value: null, child: Text('Leave the category alone')),
                   for (final c in categories)
                     DropdownMenuItem(
                       value: c.id,
@@ -162,7 +169,16 @@ Future<bool> editRule(
                     ),
                 ],
                 onChanged: (v) => setState(() => category = v),
-                validator: (v) => v == null ? 'Pick a category' : null,
+                validator: (v) =>
+                    v == null && payee.text.trim().isEmpty ? 'Pick a category or a payee name' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: payee,
+                decoration: const InputDecoration(
+                  labelText: 'Show the payee as (optional)',
+                  helperText: 'e.g. AMZN MKTP UK*2X4 → Amazon',
+                ),
               ),
             ],
           ),
@@ -182,6 +198,8 @@ Future<bool> editRule(
   if (ok != true || !context.mounted) return false;
   return guarded(
     context,
-    () => ref.mutate((s) => s.ledger.saveRule(id: rule?.id, pattern: text.text, accountId: category!)),
+    () => ref.mutate(
+      (s) => s.ledger.saveRule(id: rule?.id, pattern: text.text, accountId: category, payee: payee.text),
+    ),
   );
 }

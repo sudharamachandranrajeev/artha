@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.0-beta.12
+
+- Review queue: imported entries wait under Transactions → "To review" until you have looked at
+  them, and the dashboard says how many. Tick several to set their category or mark them
+  reviewed in one go; on a keyboard, arrows move, R marks the current one, Space selects and
+  Enter opens it. Saving an entry in the editor also marks it reviewed.
+- Payee renaming: a rule can give a payee a tidier name ("AMZN MKTP UK*2X4" → Amazon), with or
+  without a category. Imports apply it, and the rules page applies it to what is already
+  recorded; the bank's own text moves to the memo, so search and rules still find it.
+- Bills and subscriptions page (dashboard → Upcoming bills → Manage, or Insights): add a monthly
+  (or weekly, quarterly, yearly) subscription by hand and it shows in Upcoming bills and the
+  forecast straight away. Edit or delete your own, hide spotted ones that are not really bills,
+  or edit a spotted one to keep it as your own. A fixed price that changed is flagged, and the
+  new price is the one expected.
+- The database moves to schema 2 (review flag, rename rules, recurring items); existing data is
+  kept.
+
 ## 0.2.0-beta.11
 
 - Cash-flow forecast on the dashboard: spendable money day by day for the next 90 days, from

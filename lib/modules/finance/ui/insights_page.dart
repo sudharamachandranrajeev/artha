@@ -8,6 +8,7 @@ import '../../../app/providers.dart';
 import '../../../db/database.dart';
 import '../insights/catalogue.dart';
 import '../insights/insights.dart';
+import 'recurring_page.dart';
 
 Status _status(Fact f) => switch ((jsonDecode(f.data) as Map)['severity']) {
   'good' => Status.good,
@@ -162,23 +163,32 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Column(children: [for (final f in user) FactTile(f)]),
                   ),
-                if (d.recurring.isNotEmpty)
-                  SectionCard(
-                    title: 'Regular payments',
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Column(
-                      children: [
-                        for (final r in d.recurring)
-                          ListTile(
-                            dense: true,
-                            leading: const Icon(Icons.repeat),
-                            title: Text(r.label, overflow: TextOverflow.ellipsis),
-                            subtitle: Text('${r.cadence.name} · next about ${niceDate(r.nextDate)}'),
-                            trailing: Amount(r.amount, base, signed: true, flow: true),
-                          ),
-                      ],
-                    ),
+                SectionCard(
+                  title: 'Regular payments',
+                  trailing: TextButton(
+                    onPressed: () =>
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const RecurringPage())),
+                    child: const Text('Manage'),
                   ),
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Column(
+                    children: [
+                      if (d.recurring.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text('None spotted yet. Manage to add your subscriptions.'),
+                        ),
+                      for (final r in d.recurring)
+                        ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.repeat),
+                          title: Text(r.label, overflow: TextOverflow.ellipsis),
+                          subtitle: Text('${r.cadence.name} · next about ${niceDate(r.nextDate)}'),
+                          trailing: Amount(r.amount, base, signed: true, flow: true),
+                        ),
+                    ],
+                  ),
+                ),
               ],
             );
           },
