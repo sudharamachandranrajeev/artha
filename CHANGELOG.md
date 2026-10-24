@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.2.0-beta.13
+
+- Insights: "The world this week" shows the live Bank of England Bank Rate and ONS inflation,
+  quick tips that fit your accounts (inflation against your savings, the next rate decision, the
+  31 January Self Assessment deadline, the cash ISA limit falling to £12,000 in April 2027,
+  Premium Bonds, deposit protection) and the headlines most relevant to you, ranked by what you
+  hold or owe, from the Bank of England, FCA, HMRC, MoneySavingExpert and BBC Business. Only
+  public pages are downloaded, at most every 6 hours when you open Insights; nothing about you is
+  sent. Switch it off in Settings → News and rates.
+- Risk and safest plan: four questions set how much risk you are comfortable with, your
+  finances set how much you can take, and the lower one is your level. Risk checks (thin
+  emergency fund, debt at 10%+, cash above the £120,000 FSCS limit at one bank, savings losing to
+  inflation, one holding above 20%, crypto above 10%), three stress tests (income stops, markets
+  fall, rates rise 1 point) and a safety-first plan: spend less than you earn, clear expensive
+  debt, one month in cash, the employer pension match, a 3-6 month emergency fund, money for 1-5
+  years, then a global index fund for 5+ years. Each step lists the lowest-risk options first
+  with current UK best-buy rates, dated.
+- Ask Artha: ask a money question in the app and get a short, sourced answer from Claude with web
+  search, using your own Anthropic API key (Settings → Ask Artha; billed to your Anthropic
+  account). The key stays in the system keychain, never in the database or sync. Each question
+  sends a rounded summary (no payees, account names or numbers) which you can read under the eye
+  icon. Questions can also start from a tip, a headline, a risk check or a plan step. If Claude
+  declines a request, the API retries it on a fallback model.
+
 ## 0.2.0-beta.12
 
 - Review queue: imported entries wait under Transactions → "To review" until you have looked at

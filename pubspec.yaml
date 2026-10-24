@@ -1,7 +1,7 @@
 name: artha
 description: "Artha - personal finance, accounting and investment manager (Linux, Windows, Android)."
 publish_to: 'none'
-version: 0.2.0-beta.12+13
+version: 0.2.0-beta.13+14
 
 environment:
   sdk: ^3.13.5
@@ -30,7 +30,9 @@ dependencies:
   pocketbase: ^0.25.2
   qr: ^4.0.0
   sqlite3: ^3.7.1
+  url_launcher: ^6.3.3
   uuid: ^4.6.0
+  xml: ^7.0.1
 
 dev_dependencies:
   flutter_test:

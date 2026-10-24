@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../modules/finance/domain/ledger.dart' show basePrefKey;
+import '../modules/finance/insights/assistant.dart' show assistantKeyName;
+import '../modules/finance/ui/assistant_page.dart' show askForKey, assistantKeyProvider;
 import '../modules/finance/ui/common.dart';
 import '../ui/theme.dart';
 import 'appearance.dart';
@@ -12,6 +14,11 @@ final _fxProvider = FutureProvider<({bool auto, String? last})>((ref) async {
   ref.watch(revisionProvider);
   final db = ref.watch(sessionProvider).db;
   return (auto: await db.localSetting('fx.auto') != 'off', last: await db.localSetting('fx.last'));
+});
+
+final _worldSettingProvider = FutureProvider<bool>((ref) async {
+  ref.watch(revisionProvider);
+  return await ref.watch(sessionProvider).db.localSetting('world.auto') != 'off';
 });
 
 class SettingsPage extends ConsumerWidget {
@@ -76,9 +83,62 @@ class SettingsPage extends ConsumerWidget {
             ),
           ),
         ),
+        SectionCard(
+          title: 'News and rates',
+          hint: 'settings.world',
+          padding: const EdgeInsets.only(bottom: 8),
+          child: AsyncView(
+            ref.watch(_worldSettingProvider),
+            builder: (on) => SwitchListTile(
+              title: const Text('Fetch news and rates'),
+              subtitle: const Text(
+                'Downloads Bank Rate, inflation and headlines from the Bank of England, ONS, HMRC, FCA, '
+                'MoneySavingExpert and BBC at most every 6 hours when you open Insights. Nothing about you is sent.',
+              ),
+              value: on,
+              onChanged: (v) async {
+                await ref.read(sessionProvider).db.setLocalSetting('world.auto', v ? 'on' : 'off');
+                ref.invalidate(_worldSettingProvider);
+              },
+            ),
+          ),
+        ),
+        SectionCard(
+          title: 'Ask Artha',
+          hint: 'settings.assistant',
+          padding: const EdgeInsets.only(bottom: 8),
+          child: AsyncView(
+            ref.watch(assistantKeyProvider),
+            builder: (key) => ListTile(
+              title: Text(key == null ? 'Off' : 'On, using your Anthropic key'),
+              subtitle: const Text(
+                'Answers questions with Claude and web search. Each question sends a rounded summary of your '
+                'finances (no payees, account names or numbers); see it under the eye icon. Billed to your '
+                'Anthropic account. The key stays in this device\'s keychain.',
+              ),
+              trailing: Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => askForKey(context, ref),
+                    child: Text(key == null ? 'Add key' : 'Replace'),
+                  ),
+                  if (key != null)
+                    TextButton(
+                      onPressed: () async {
+                        await ref.read(sessionProvider).keys.store.delete(assistantKeyName);
+                        ref.invalidate(assistantKeyProvider);
+                      },
+                      child: const Text('Remove'),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
         const SyncCard(),
         const SecurityCard(
-          network: 'Nothing leaves the device unless you sign in to sync or fetch exchange rates.',
+          network: 'Nothing leaves the device unless you sign in to sync, fetch exchange rates, news and rates, or ask a question with your own key.',
         ),
         const AboutCard(description: 'Personal finance and investments.'),
       ],

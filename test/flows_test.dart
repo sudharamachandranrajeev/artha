@@ -336,4 +336,68 @@ void main() {
     expect(tester.takeException(), isNull);
     await app.close();
   });
+
+  testWidgets('risk level, safest plan and the assistant setup, with the network off', (tester) async {
+    final app = AppHarness(tester)..desktop();
+    await app.open(
+      seed: (ledger) async {
+        await seed(ledger);
+        await ledger.saveAccount(name: 'Monzo', subtype: 'current', commodityId: 'GBP');
+      },
+    );
+    await app.run();
+    await app.go('Insights');
+    expect(find.text('The world this week'), findsOneWidget);
+    expect(find.text('Quick tips'), findsOneWidget);
+    expect(find.textContaining('Nothing fetched yet'), findsOneWidget);
+    expect(find.text('Risk and safest plan'), findsOneWidget);
+    expect(find.textContaining('Your level:'), findsOneWidget);
+
+    await app.tapText('Open');
+    expect(find.text('Safest plan for you'), findsOneWidget);
+    expect(find.text('Spend less than you earn'), findsOneWidget);
+    await app.tapText('Answer 4 questions');
+    expect(find.text('How much risk is right for you?'), findsOneWidget);
+    // Save waits for all four answers.
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Save')).onPressed, isNull);
+    for (final answer in ['In 5 to 10 years', 'Hold calmly', 'Funds or shares I chose', 'A balance']) {
+      await app.tap(find.text(answer));
+    }
+    await app.tapText('Save');
+    expect(find.text('Retake'), findsOneWidget);
+    final saved = await tester.runAsync(() => app.ledger.pref<Map>('risk.answers', const {}));
+    expect(saved, {'horizon': 3, 'fall': 3, 'experience': 3, 'goal': 2});
+
+    await app.tap(find.byTooltip('Ask Artha').first);
+    expect(find.text('Add API key'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await app.close();
+  });
+
+  testWidgets('the assistant key is kept in the keychain, not the database', (tester) async {
+    final app = AppHarness(tester)..desktop();
+    await app.open(seed: seed);
+    await app.run();
+    await app.go('Settings');
+    expect(find.text('News and rates'), findsOneWidget);
+    await app.tapText('Add key');
+    await app.enter('API key', 'not a key');
+    await app.tapText('Save');
+    expect(find.text('That does not look like an API key.'), findsOneWidget);
+    expect(await tester.runAsync(() => app.session.keys.store.read('artha.claude.key')), isNull);
+    await app.tapText('Add key');
+    await app.enter('API key', 'sk-ant-api03-abcdefghijklmnopqrstuvwxyz');
+    await app.tapText('Save');
+    expect(find.text('On, using your Anthropic key'), findsOneWidget);
+    expect(
+      await tester.runAsync(() => app.session.keys.store.read('artha.claude.key')),
+      'sk-ant-api03-abcdefghijklmnopqrstuvwxyz',
+    );
+    final inDb = await tester.runAsync(() => app.ledger.db.select(app.ledger.db.prefs).get());
+    expect(inDb!.any((p) => p.value.contains('sk-ant')), isFalse);
+    await app.tapText('Remove');
+    expect(find.text('Off'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await app.close();
+  });
 }

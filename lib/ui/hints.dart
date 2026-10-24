@@ -47,7 +47,14 @@ const arthaHints = <String, String>{
   // Insights
   'insights.useful': 'Keep insights like this one higher up.',
   'insights.dismiss': 'Hide this one and show fewer like it.',
+  'settings.world': 'Public downloads only: Bank Rate, inflation and news headlines.',
+  'settings.assistant': 'Optional. Uses your own Anthropic API key, kept in the system keychain.',
+  'insights.ask': 'Ask a money question; answers use the web and your own Anthropic key.',
   'insights.remember': 'Tell Artha about a goal or a coming cost so suggestions fit.',
+  'risk.profile':
+      'Your level is the lower of how much risk you are comfortable with and how much your finances can '
+      'absorb. Cash cushion, debt and spare income all count.',
+  'insights.world': 'News and rates from the Bank of England, ONS, HMRC, the FCA and consumer-money sites.',
   'insights.explore': 'Common ways to save and invest in the UK, with their trade-offs.',
   // Reports
   'reports.period': 'Period the income statement covers.',
@@ -81,6 +88,9 @@ const arthaHints = <String, String>{
   'page.insights':
       'Insights are worked out on this device from your own data. Mark them useful or not and the '
       'list adapts. Nothing here is financial advice.',
+  'page.risk':
+      'Worked out on this device from your accounts. The plan puts safety first: spend less than you earn, '
+      'clear expensive debt, hold a cash cushion, then invest for the long term.',
   'page.reports':
       'Business-standard statements from the same ledger. The trial balance must net to zero in '
       'every currency; the integrity check confirms it.',

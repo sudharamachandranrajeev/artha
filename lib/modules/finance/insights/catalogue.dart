@@ -3,6 +3,8 @@
 /// next to anything drawn from here.
 library;
 
+import 'package:brahma_core/brahma_core.dart' show daysBetween;
+
 class InvestmentOption {
   const InvestmentOption({
     required this.id,
@@ -38,6 +40,35 @@ class UkAllowances {
   static const lisa = 400000; // counts towards the ISA allowance
   static const premiumBondsMax = 5000000;
   static const pensionAnnual = 6000000;
+}
+
+/// Best-buy rates and rules checked on [asOf], with where they came from.
+/// Bank Rate and CPI are fetched live (see world.dart); these are not, so the
+/// app shows their date and flags them when they get old.
+class UkRates {
+  static const asOf = '2026-10-24';
+  static const bestEasyAccess = 5.00; // AER, includes an introductory bonus
+  static const bestOneYearFix = 5.15;
+  static const bestOneYearFixIsa = 5.00;
+  static const premiumBondsPrize = 4.35; // prize fund rate, tax-free
+  static const premiumBondsOdds = '21,000 to 1';
+  static const fscsLimit = 12000000; // pence, per person per banking licence
+  static const cashIsaFrom = '2027-04-06';
+  static const cashIsaUnder65 = 1200000; // pence a year from [cashIsaFrom]
+  static const nextRateDecision = '2026-11-05';
+  static const sources = [
+    ('Moneyfacts best buys, 23 Oct 2026', 'https://moneyfactscompare.co.uk/savings-accounts/'),
+    ('NS&I Premium Bonds', 'https://www.nsandi.com/products/premium-bonds'),
+    ('FSCS deposit protection', 'https://www.fscs.org.uk/check/check-your-money-is-protected/'),
+    ('Cash ISA changes from April 2027', 'https://www.gov.uk/individual-savings-accounts'),
+    (
+      'Bank of England Bank Rate',
+      'https://www.bankofengland.co.uk/monetary-policy/the-interest-rate-bank-rate',
+    ),
+  ];
+
+  /// More than two months old: rates move, so say so.
+  static bool stale(String today) => daysBetween(today, asOf) > 60;
 }
 
 /// First day of the UK tax year containing [iso] (yyyy-MM-dd).

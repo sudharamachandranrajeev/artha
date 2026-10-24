@@ -25,6 +25,7 @@ class AppHarness {
       session = AppSession(KeyVault(MemorySecretStore(), arthaIdentity), store, Ledger(store));
       // No network in tests.
       await db.setLocalSetting('fx.auto', 'off');
+      await db.setLocalSetting('world.auto', 'off');
       await seed?.call(session.ledger);
     });
   }

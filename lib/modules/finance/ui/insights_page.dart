@@ -8,7 +8,11 @@ import '../../../app/providers.dart';
 import '../../../db/database.dart';
 import '../insights/catalogue.dart';
 import '../insights/insights.dart';
+import '../insights/risk.dart';
+import 'assistant_page.dart';
 import 'recurring_page.dart';
+import 'risk_page.dart';
+import 'world_card.dart';
 
 Status _status(Fact f) => switch ((jsonDecode(f.data) as Map)['severity']) {
   'good' => Status.good,
@@ -76,6 +80,12 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
       banner: 'page.insights',
       actions: [
         HintIconButton(
+          'insights.ask',
+          icon: Icons.forum_outlined,
+          label: 'Ask Artha',
+          onPressed: () => openAssistant(context),
+        ),
+        HintIconButton(
           'insights.remember',
           icon: Icons.bookmark_add_outlined,
           label: 'Tell Artha something',
@@ -90,6 +100,7 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
             final m = d.metrics;
             final user = d.facts.where((f) => f.state == 'user').toList();
             final auto = d.facts.where((f) => f.state != 'user').toList();
+            final situation = ref.watch(situationProvider).value;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -147,6 +158,8 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
                       ],
                     ),
                   ),
+                _riskSummary(context),
+                if (situation != null) WorldCard(situation: situation),
                 SectionCard(
                   title: 'What Artha noticed',
                   padding: const EdgeInsets.only(bottom: 8),
@@ -195,6 +208,34 @@ class _InsightsPageState extends ConsumerState<InsightsPage> {
         ),
         _explore(),
       ],
+    );
+  }
+
+  Widget _riskSummary(BuildContext context) {
+    final risk = ref.watch(riskProvider).value;
+    final situation = ref.watch(situationProvider).value;
+    if (risk == null || situation == null) return const SizedBox.shrink();
+    final step = buildPlan(situation, risk).where((p) => p.state == 'now').firstOrNull;
+    final flags = riskChecks(situation).where((c) => c.severity == 'action' || c.severity == 'warn').length;
+    return SectionCard(
+      title: 'Risk and safest plan',
+      trailing: TextButton(
+        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RiskPage())),
+        child: const Text('Open'),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Your level: ${risk.label}', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            step == null
+                ? 'Every step of the safety-first plan is in place.'
+                : 'Next step: ${step.title}${step.gap == null ? '' : ' (${money(step.gap!, situation.base)} to go)'}.',
+          ),
+          if (flags > 0) Text('$flags ${flags == 1 ? 'thing' : 'things'} to look at in the risk checks.'),
+        ],
+      ),
     );
   }
 
