@@ -95,16 +95,13 @@ void main() {
       return app;
     }
 
-    // Phone pages: the bar holds the first few, the rest sit under More.
-    Future<void> phoneGo(AppHarness app, String label) async {
-      final bar = find.descendant(of: find.byType(NavigationBar), matching: find.text(label));
-      if (bar.evaluate().isNotEmpty) {
-        await app.tap(bar);
-        return;
-      }
-      await app.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('More')));
-      await app.tap(find.descendant(of: find.byType(BottomSheet), matching: find.text(label)));
-    }
+    // Phone pages: the dock holds them all and scrolls to the one asked for.
+    Future<void> phoneGo(AppHarness app, String label) => app.tap(
+      find.descendant(
+        of: find.byWidgetPredicate((w) => '${w.runtimeType}' == '_Dock'),
+        matching: find.byTooltip(label),
+      ),
+    );
 
     for (final dark in [false, true]) {
       tester.platformDispatcher.platformBrightnessTestValue = dark ? Brightness.dark : Brightness.light;

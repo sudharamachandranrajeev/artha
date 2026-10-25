@@ -74,11 +74,14 @@ void main() {
     await app.open(seed: seed);
     await app.run();
     await visitAll(app, (label) async {
-      final bar = find.descendant(of: find.byType(NavigationBar), matching: find.text(label));
-      if (bar.evaluate().isNotEmpty) return tester.tap(bar);
-      await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('More')));
-      await app.settle();
-      await tester.tap(find.descendant(of: find.byType(BottomSheet), matching: find.text(label)));
+      // The dock holds every screen; scroll it to the one asked for.
+      final item = find.descendant(
+        of: find.byWidgetPredicate((w) => '${w.runtimeType}' == '_Dock'),
+        matching: find.byTooltip(label),
+      );
+      await tester.ensureVisible(item);
+      await tester.pump();
+      await tester.tap(item);
     });
     await app.close();
   });

@@ -11,7 +11,6 @@ const arthaHints = <String, String>{
   'nav.reports': 'Balance sheet, income statement, trial balance and checks.',
   'nav.import': 'Bring in bank statements (PDF, CSV, OFX, QFX, QIF).',
   'nav.settings': 'Currency, hints, exchange rates, sync and security.',
-  'nav.more': 'The rest of Artha.',
   // Dashboard
   'kpi.networth': 'Everything you own minus everything you owe, in your base currency.',
   'kpi.liquid': 'Money you can use within days: current, savings, cash and cash ISAs.',
