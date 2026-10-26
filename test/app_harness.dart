@@ -28,6 +28,8 @@ class AppHarness {
       // No network in tests.
       await db.setLocalSetting('fx.auto', 'off');
       await db.setLocalSetting('world.auto', 'off');
+      // Nor the start-up check for a newer release on GitHub.
+      await db.setLocalSetting('sentinel.updates', 'off');
       await seed?.call(session.ledger);
     });
   }

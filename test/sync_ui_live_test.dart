@@ -8,8 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'app_harness.dart';
 import 'support.dart';
 
-/// Sync through the real dialogs against a local server: create an account
-/// on one device, add devices to it by pairing, and sign in with e-mail.
+/// Sync through the real setup wizard and dialogs against a local server:
+/// create an account on one device, add devices to it by pairing, and sign
+/// in with e-mail.
 void main() {
   final server = LiveServer.fromEnvironment();
   final run = DateTime.now().microsecondsSinceEpoch;
@@ -30,14 +31,6 @@ void main() {
       await app.tester.pump(const Duration(milliseconds: 100));
     }
     expect(f, findsWidgets);
-  }
-
-  Future<void> waitGone(AppHarness app, Finder f) async {
-    for (var i = 0; i < 300 && f.evaluate().isNotEmpty; i++) {
-      await app.tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
-      await app.tester.pump(const Duration(milliseconds: 100));
-    }
-    expect(f, findsNothing);
   }
 
   /// Real-time work outside the widget tree, such as the other device.
@@ -77,21 +70,32 @@ void main() {
     );
     await a.run();
     await a.go('Settings');
+    // The setup wizard: sync, an existing server, then a new account on it.
+    await a.tapText('Set up sync');
+    await a.tapText('Sync across my devices');
+    await a.tapText('I already have a server');
+    await a.enter('Setup link or server address', server!.url);
+    await a.tapText('Check server');
+    await waitFor(a, find.text('Continue'));
+    await a.tapText('Continue');
     await a.tapText('Create account');
+    expect(find.text('Create your account'), findsOneWidget);
     await fillIn(a, {
-      'Server address': server!.url,
       'E-mail': email,
-      'New password': password,
+      'Password': password,
       'Repeat password': password,
       'Invite code': server.invite,
     });
-    await a.tapText('Create');
+    // The segment and the submit button now both read 'Create account'.
+    await a.tapText('Create account');
     await waitFor(a, find.text('Save your recovery key'));
     expect(find.text('Done'), findsOneWidget);
     await a.tapText('I have saved it somewhere safe');
     await a.tapText('Done');
-    // The dialog closes once the first sync is done.
-    await waitGone(a, find.text('Create sync account'));
+    // The last step shows once the first sync is done.
+    await waitFor(a, find.text("You're set"));
+    await a.tapText('Open Artha');
+    expect(find.text("You're set"), findsNothing);
     expect(find.text(email), findsOneWidget);
 
     // Add a device: the QR code's link, approved in the dialog.
@@ -145,5 +149,8 @@ void main() {
     await waitFor(c, find.text('Net worth'));
     expect(tester.takeException(), isNull);
     await c.close();
+    // Sign-in's HTTP leaves an idle keep-alive connection whose 15 s timer
+    // runs on the test clock; let it expire.
+    await tester.pump(const Duration(seconds: 16));
   });
 }
