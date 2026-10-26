@@ -4,7 +4,12 @@ import '../db/database.dart';
 import '../modules/finance/domain/ledger.dart';
 
 /// Artha in Brahma's terms: the app's id, name and Android package.
-const arthaIdentity = AppIdentity(id: 'artha', name: 'Artha', androidPackage: 'dev.artha.artha');
+const arthaIdentity = AppIdentity(
+  id: 'artha',
+  name: 'Artha',
+  androidPackage: 'dev.artha.artha',
+  releases: 'sudharamachandranrajeev/artha',
+);
 
 /// Everything a running app needs: keys, the encrypted database and the
 /// services on top of it. Opened once at start-up.

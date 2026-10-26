@@ -23,6 +23,8 @@ class AppHarness {
       final db = await openTestDatabase();
       final store = await Store.open(db);
       session = AppSession(KeyVault(MemorySecretStore(), arthaIdentity), store, Ledger(store));
+      // Past the first-run choice between this device only and sync.
+      await session.db.setLocalSetting('onboarding.sync', 'done');
       // No network in tests.
       await db.setLocalSetting('fx.auto', 'off');
       await db.setLocalSetting('world.auto', 'off');
