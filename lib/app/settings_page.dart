@@ -136,6 +136,7 @@ class SettingsPage extends ConsumerWidget {
             ),
           ),
         ),
+        const AppLockCard(),
         const SyncCard(),
         const SecurityCard(
           network: 'Nothing leaves the device unless you sign in to sync, fetch exchange rates, news and rates, or ask a question with your own key.',

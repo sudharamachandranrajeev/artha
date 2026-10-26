@@ -25,6 +25,7 @@ List<Override> arthaOverrides(AppSession session) => [
   coreSessionProvider.overrideWithValue(session),
   appIdentityProvider.overrideWithValue(arthaIdentity),
   hintTextsProvider.overrideWithValue({...coreHints, ...arthaHints}),
+  sentinelChecksProvider.overrideWithValue([...coreChecks, lockCheck]),
 ];
 
 extension Mutate on WidgetRef {

@@ -22,6 +22,7 @@ class ArthaApp extends ConsumerWidget {
       theme: buildArthaTheme(palette, Brightness.light),
       darkTheme: buildArthaTheme(palette, Brightness.dark),
       themeMode: appearance.mode,
+      builder: (context, child) => AppLockGate(child: child!),
       home: home,
     );
   }
