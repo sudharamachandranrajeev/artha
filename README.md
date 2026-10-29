@@ -83,7 +83,7 @@ the newest release, pick the file for your device:
 
 | Your device | File to download | Works on |
 | --- | --- | --- |
-| 🐧 Linux computer | `Artha-<version>-linux-x64.tar.gz` | Ubuntu 22.04+, Debian 12+, Fedora, Arch, Omarchy (Intel/AMD 64-bit) |
+| 🐧 Linux computer | `Artha-<version>-linux-x64.tar.gz` | Ubuntu 22.04+, Debian 12+, Fedora, Arch, Omarchy (64-bit x86) |
 | 🪟 Windows computer | `Artha-<version>-windows-x64-setup.exe` | Windows 10 and 11 |
 | 🤖 Android phone | `Artha-<version>-android.apk` | Android 7 and newer |
 
@@ -126,7 +126,7 @@ Prefer no installer? Download `…-windows-x64-portable.zip`, unzip it anywhere 
 
 1. Open the downloaded `.apk` on your phone.
 2. If Android asks, allow installs from your browser or file manager. This is normal for apps
-   from outside the Play Store.
+   from outside an app store.
 3. Tap **Install**, then **Open**.
 
 Newer versions install over the top and keep your data.
@@ -264,9 +264,8 @@ scripts/make-icons.sh                                                 # app icon
   [flutter_secure_storage](https://pub.dev/packages/flutter_secure_storage),
   [file_picker](https://pub.dev/packages/file_picker), [url_launcher](https://pub.dev/packages/url_launcher)
 - [Inter](https://rsms.me/inter/) font
-- Exchange rates: European Central Bank reference rates via [Frankfurter](https://frankfurter.dev)
-- Rates and news: Bank of England, ONS, FCA, HMRC, MoneySavingExpert and BBC Business public feeds
-- [Claude](https://www.anthropic.com/claude) by Anthropic for the optional Ask Artha
+- Exchange rates: public central bank reference rates via [Frankfurter](https://frankfurter.dev)
+- Rates and news: UK public rates and news feeds
 
 </details>
 
