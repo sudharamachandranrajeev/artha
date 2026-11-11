@@ -8,7 +8,7 @@ const arthaIdentity = AppIdentity(
   id: 'artha',
   name: 'Artha',
   androidPackage: 'dev.artha.artha',
-  releases: 'sudharamachandranrajeev/artha',
+  releases: 'sudharamachandranrajeev/artha-personal-finance',
 );
 
 /// Everything a running app needs: keys, the encrypted database and the

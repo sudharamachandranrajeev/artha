@@ -135,7 +135,7 @@ dest="$test_home/.local/lib/artha"
 # Latest release resolves the prerelease tag while naming the versioned archive correctly.
 reset
 install_fixture
-contains "$tmp/events" 'gh release list --repo sudharamachandranrajeev/artha --exclude-drafts --limit 1 --json tagName'
+contains "$tmp/events" 'gh release list --repo sudharamachandranrajeev/artha-personal-finance --exclude-drafts --limit 1 --json tagName'
 contains "$tmp/events" 'Artha-2.4.0-beta.1-linux-x64.tar.gz'
 [[ -x $dest/artha && -f $dest/lib/example.so && -f $dest/data/example.dat && -f $dest/install.sh ]] || die 'release bundle did not install'
 contains "$tmp/out" "$test_home/.local/bin/artha"

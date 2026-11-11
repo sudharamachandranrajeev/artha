@@ -11,7 +11,7 @@ dependencies:
   # local checkout during development.
   brahma_core:
     git:
-      url: https://github.com/sudharamachandranrajeev/brahma.git
+      url: https://github.com/sudharamachandranrajeev/brahma-life-suite.git
       path: core
   cryptography: ^2.9.0
   drift: ^2.35.2

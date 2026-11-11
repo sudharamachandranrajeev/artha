@@ -1,7 +1,7 @@
 # Artha sync server
 
 > **Moved:** every Brahma app, Artha included, now shares one server: the
-> [Brahma sync server](https://github.com/sudharamachandranrajeev/brahma/tree/main/server), which
+> [Brahma sync server](https://github.com/sudharamachandranrajeev/brahma-life-suite/tree/main/server), which
 > runs at home (one installer) or on Cloudflare's free plan, and which the app's first-run setup
 > walks you through. This copy still works and Artha still syncs with servers set up from it, but
 > new fixes land in the Brahma server only, and this folder will go in a later release.

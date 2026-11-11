@@ -29,7 +29,7 @@ the app; you do not need an Artha sync account to use it.
 3. Download the installer, then run it:
 
    ```sh
-   gh api 'repos/sudharamachandranrajeev/artha/contents/scripts/install-linux.sh?ref=main' \
+   gh api 'repos/sudharamachandranrajeev/artha-personal-finance/contents/scripts/install-linux.sh?ref=main' \
      -H 'Accept: application/vnd.github.raw+json' > install-artha.sh &&
    bash install-artha.sh --download
    ```
@@ -54,7 +54,7 @@ You can inspect the script before running it. `bash install-artha.sh --help` lis
 
 ## Prefer downloading in your browser?
 
-Sign in to GitHub and open the [release downloads](https://github.com/sudharamachandranrajeev/artha/releases).
+Sign in to GitHub and open the [release downloads](https://github.com/sudharamachandranrajeev/artha-personal-finance/releases).
 Download the Linux `.tar.gz` file and `SHA256SUMS.txt` from the same release into an otherwise
 empty folder. In a terminal in that folder, run:
 

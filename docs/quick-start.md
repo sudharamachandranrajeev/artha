@@ -5,9 +5,9 @@ creating an online account. Financial data is encrypted on that device.
 
 ## 1. Install and open Artha
 
-On Linux, follow the [Linux installation guide](https://github.com/sudharamachandranrajeev/artha/blob/main/docs/install-linux.md).
+On Linux, follow the [Linux installation guide](https://github.com/sudharamachandranrajeev/artha-personal-finance/blob/main/docs/install-linux.md).
 On Windows, run the release's `setup.exe`. On Android, install the release's `.apk`.
-Downloads are on the [releases page](https://github.com/sudharamachandranrajeev/artha/releases);
+Downloads are on the [releases page](https://github.com/sudharamachandranrajeev/artha-personal-finance/releases);
 sign in to GitHub with an account that has repository access.
 
 ## 2. Choose your base currency
@@ -42,7 +42,7 @@ palette and light, dark or system mode. The hints beside controls explain what e
 ## Optional: use more than one device
 
 Sync needs a running Artha server. Ask its operator for the HTTPS server address and invite
-code, or follow the [server setup guide](https://github.com/sudharamachandranrajeev/artha/blob/main/server/README.md).
+code, or follow the [server setup guide](https://github.com/sudharamachandranrajeev/artha-personal-finance/blob/main/server/README.md).
 
 On your first device, open **Settings → Sync → Create account**. Save the recovery key
 somewhere separate and safe before finishing. On another device, sign in, or use **Add a

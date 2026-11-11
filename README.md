@@ -1,6 +1,6 @@
 <h1 align="center">
   <br>
-  <a href="https://github.com/sudharamachandranrajeev/artha"><img src="branding/artha-512.png" alt="Artha" width="140"></a>
+  <a href="https://github.com/sudharamachandranrajeev/artha-personal-finance"><img src="branding/artha-512.png" alt="Artha" width="140"></a>
   <br>
   Artha
   <br>
@@ -9,10 +9,10 @@
 <h4 align="center">All your money in one private place: accounts, spending, bills and investments, on your phone and computer.</h4>
 
 <p align="center">
-  <a href="https://github.com/sudharamachandranrajeev/artha/releases"><img src="https://img.shields.io/github/v/release/sudharamachandranrajeev/artha?include_prereleases&color=2b22c9&label=download" alt="Latest release"></a>
+  <a href="https://github.com/sudharamachandranrajeev/artha-personal-finance/releases"><img src="https://img.shields.io/github/v/release/sudharamachandranrajeev/artha-personal-finance?include_prereleases&color=2b22c9&label=download" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/works%20on-Linux%20%7C%20Windows%20%7C%20Android-555" alt="Works on Linux, Windows and Android">
   <img src="https://img.shields.io/badge/your%20data-encrypted-2e7d32" alt="Your data is encrypted">
-  <a href="https://github.com/sudharamachandranrajeev/brahma"><img src="https://img.shields.io/badge/part%20of-Brahma-8a5cf6" alt="Part of Brahma"></a>
+  <a href="https://github.com/sudharamachandranrajeev/brahma-life-suite"><img src="https://img.shields.io/badge/part%20of-Brahma-8a5cf6" alt="Part of Brahma"></a>
 </p>
 
 <p align="center">
@@ -78,7 +78,7 @@ bank's own records too.
 
 ### Step 1 – Download
 
-Open the [releases page](https://github.com/sudharamachandranrajeev/artha/releases) and, under
+Open the [releases page](https://github.com/sudharamachandranrajeev/artha-personal-finance/releases) and, under
 the newest release, pick the file for your device:
 
 | Your device | File to download | Works on |
@@ -147,7 +147,7 @@ The full walk-through is in [Your first five minutes with Artha](docs/quick-star
 ### Step 4 (optional) – Use it on more than one device
 
 1. Set up a free sync server, at home or on Cloudflare. The
-   [Brahma sync server guide](https://github.com/sudharamachandranrajeev/brahma/tree/main/server)
+   [Brahma sync server guide](https://github.com/sudharamachandranrajeev/brahma-life-suite/tree/main/server)
    walks you through it, step by step.
 2. In Artha, open **Settings → Sync → Create account**.
 3. **Write down the recovery key** it shows and keep it somewhere safe, away from the device.
@@ -233,7 +233,7 @@ stays in your system keychain, never in the database or in sync. It is off until
 You need [Git](https://git-scm.com) and [Flutter](https://flutter.dev) 3.47.
 
 ```bash
-git clone https://github.com/sudharamachandranrajeev/artha
+git clone https://github.com/sudharamachandranrajeev/artha-personal-finance
 cd artha
 flutter pub get
 flutter run -d linux        # or windows, or an Android device
@@ -275,11 +275,11 @@ Artha is one app in the **Brahma** family. They share one sign-in and one sync s
 
 | App | What it does |
 | --- | --- |
-| [brahma](https://github.com/sudharamachandranrajeev/brahma) | The shared core and the all-in-one app |
-| [graha-anveshana](https://github.com/sudharamachandranrajeev/graha-anveshana) | Find a home to rent or buy |
-| [vahana-anveshana](https://github.com/sudharamachandranrajeev/vahana-anveshana) | Find a car |
-| [udyoga](https://github.com/sudharamachandranrajeev/udyoga) | Career and job hunting |
-| [vidya](https://github.com/sudharamachandranrajeev/vidya) | Learning, flashcards and focus |
+| [brahma](https://github.com/sudharamachandranrajeev/brahma-life-suite) | The shared core and the all-in-one app |
+| [graha-anveshana](https://github.com/sudharamachandranrajeev/graha-anveshana-property-search) | Find a home to rent or buy |
+| [vahana-anveshana](https://github.com/sudharamachandranrajeev/vahana-anveshana-car-manager) | Find a car |
+| [udyoga](https://github.com/sudharamachandranrajeev/udyoga-career-manager) | Career and job hunting |
+| [vidya](https://github.com/sudharamachandranrajeev/vidya-learning-manager) | Learning, flashcards and focus |
 
 ## License
 

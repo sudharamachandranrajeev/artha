@@ -76,7 +76,7 @@ if [[ -z $bundle ]]; then
   command -v gh >/dev/null || fail "GitHub CLI (gh) is required to download a release"
   command -v tar >/dev/null || fail "tar is required"
   temp="$(mktemp -d)"
-  repo=sudharamachandranrajeev/artha
+  repo=sudharamachandranrajeev/artha-personal-finance
   if [[ -z $version ]]; then
     version="$(gh release list --repo "$repo" --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName')" || fail "could not find a release; sign in with gh auth login"
     [[ -n $version && $version != null ]] || fail "no published release found"
